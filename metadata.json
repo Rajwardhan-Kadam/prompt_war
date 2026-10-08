@@ -1,0 +1,6 @@
+{
+  "name": "Prompt Wars — Battle of the Minds",
+  "description": "A high-stakes 3-round Generative AI challenge platform with prompt upload, live leaderboard, AI vs Human prompt authenticity detector, and admin judging console.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

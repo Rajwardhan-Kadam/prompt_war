@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-heading: 'Space Grotesk', sans-serif;
+    --font-body: 'Space Grotesk', sans-serif;
+    --font-mono: 'Space Mono', 'JetBrains Mono', monospace;
+
+    --color-bg: #F4F4F0;
+    --color-white: #FFFFFF;
+    --color-black: #000000;
+    --color-yellow: #FFD600;
+    --color-orange: #FF6B00;
+    --color-pink: #FF4081;
+    --color-cyan: #00E5FF;
+    --color-green: #00C853;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-bg);
+    color: var(--color-black);
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.03em;
+    font-weight: 800;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Neo-Brutalist Card styling */
+.neo-card {
+  background: #ffffff;
+  border: 3px solid #000000;
+  box-shadow: 5px 5px 0 #000000;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.neo-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 #000000;
+}
+
+.neo-card-yellow {
+  background: #FFD600;
+  border: 3px solid #000000;
+  box-shadow: 5px 5px 0 #000000;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.neo-card-yellow:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 #000000;
+}
+
+/* Neo-Brutalist Buttons */
+.neo-btn {
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0 #000000;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  text-transform: uppercase;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: pointer;
+}
+
+.neo-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000000;
+}
+
+.neo-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0 #000000;
+}
+
+.neo-btn-yellow {
+  background: #FFD600;
+  color: #000000;
+}
+.neo-btn-yellow:hover {
+  background: #FFE033;
+}
+
+.neo-btn-pink {
+  background: #FF4081;
+  color: #FFFFFF;
+}
+
+.neo-btn-green {
+  background: #00C853;
+  color: #000000;
+}
+
+.neo-btn-orange {
+  background: #FF6B00;
+  color: #FFFFFF;
+}
+
+.neo-btn-cyan {
+  background: #00E5FF;
+  color: #000000;
+}
+
+.neo-btn-black {
+  background: #000000;
+  color: #FFFFFF;
+}
+
+/* Neo-Brutalist Inputs */
+.neo-input {
+  background: #FFFFFF;
+  border: 3px solid #000000;
+  box-shadow: 3px 3px 0 #000000;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.neo-input:focus {
+  outline: none;
+  box-shadow: 5px 5px 0 #000000;
+  transform: translate(-1px, -1px);
+}
+
+/* Neo-Brutalist Badges */
+.neo-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid #000000;
+  box-shadow: 2px 2px 0 #000000;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Continuous Marquee Ticker (like Loot Drop) */
+.ticker-strip {
+  background: #000000;
+  color: #FFFFFF;
+  border-top: 3px solid #000000;
+  border-bottom: 3px solid #000000;
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.ticker-track {
+  display: inline-flex;
+  animation: marquee 25s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Sleek Brutalist Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F4F4F0;
+  border-left: 2px solid #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF6B00;
+}
