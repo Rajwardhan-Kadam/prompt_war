@@ -109,6 +109,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   const top2 = sorted[1];
   const top3 = sorted[2];
 
+  const getParticipantDynamicRank = (p: Participant) => {
+    if (selectedRoundTab === 1) return p.round1Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
+    if (selectedRoundTab === 2) return p.round2Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
+    if (selectedRoundTab === 3) return p.round3Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
+    return p.rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
+  };
+
+  const getParticipantRankString = (p: Participant) => {
+    const r = getParticipantDynamicRank(p);
+    return `#${r.toString().padStart(2, '0')}`;
+  };
+
   // Helper to get participant's specific submission for round
   const getSubmissionForRound = (participantId: string, regId: string, roundId: 1 | 2 | 3) => {
     return submissions.find(
@@ -545,7 +557,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-xl bg-black text-[#FFD600] font-heading font-black text-xs uppercase flex items-center space-x-1.5 shadow-[2px_2px_0_#000]">
                       <Crown className="w-4 h-4 text-[#FFD600]" />
-                      <span>{selectedRoundTab === 'overall' ? 'GOLD CHAMPION · RANK #01' : `ROUND 0${selectedRoundTab} WINNER · #01`}</span>
+                      <span>
+                        {selectedRoundTab === 'overall'
+                          ? `GOLD CHAMPION · RANK ${getParticipantRankString(top1)}`
+                          : `ROUND 0${selectedRoundTab} WINNER · RANK ${getParticipantRankString(top1)}`}
+                      </span>
                     </span>
                     <span className="text-xs font-mono font-black text-black bg-white px-2 py-0.5 rounded border-2 border-black">
                       {top1.registrationId}
@@ -626,7 +642,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-xl bg-neutral-100 text-black font-heading font-black text-xs uppercase border-2 border-black flex items-center space-x-1.5 shadow-[2px_2px_0_#000]">
                       <Medal className="w-4 h-4 text-neutral-600" />
-                      <span>SILVER · RANK #02</span>
+                      <span>
+                        {selectedRoundTab === 'overall'
+                          ? `SILVER RUNNER-UP · RANK ${getParticipantRankString(top2)}`
+                          : `ROUND 0${selectedRoundTab} RUNNER-UP · RANK ${getParticipantRankString(top2)}`}
+                      </span>
                     </span>
                     <span className="text-xs font-mono font-bold text-black/70 bg-neutral-100 px-2 py-0.5 rounded border border-black">
                       {top2.registrationId}
@@ -697,7 +717,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-xl bg-white text-black font-heading font-black text-xs uppercase border-2 border-black flex items-center space-x-1.5 shadow-[2px_2px_0_#000]">
                       <Medal className="w-4 h-4 text-[#FF6B00]" />
-                      <span>BRONZE · RANK #03</span>
+                      <span>
+                        {selectedRoundTab === 'overall'
+                          ? `BRONZE 3RD PLACE · RANK ${getParticipantRankString(top3)}`
+                          : `ROUND 0${selectedRoundTab} 3RD PLACE · RANK ${getParticipantRankString(top3)}`}
+                      </span>
                     </span>
                     <span className="text-xs font-mono font-bold text-black bg-white px-2 py-0.5 rounded border border-black">
                       {top3.registrationId}
