@@ -177,7 +177,7 @@ const KNOWN_AI_CLICHES = [
 function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
   const clean = text.trim();
   const lower = clean.toLowerCase();
-  
+
   if (!clean || clean.length < 5) {
     return {
       authenticityScore: 50,
@@ -556,7 +556,7 @@ app.get('/api/round1/my-task', requireParticipant, async (req: AuthenticatedRequ
   try {
     const participant = req.participant!;
     const task = participant.round1Task || round1TaskMap.get(participant.id) || null;
-    
+
     res.json({
       success: true,
       task,
@@ -606,7 +606,7 @@ app.post('/api/round1/draw-task', requireParticipant, async (req: AuthenticatedR
             }
           }
         }
-      } catch {}
+      } catch { }
     } else {
       for (const p of memoryParticipants) {
         if (p.round1Task && p.round1Task.id) {
@@ -638,7 +638,7 @@ app.post('/api/round1/draw-task', requireParticipant, async (req: AuthenticatedR
         console.warn('Supabase round1_task update warning:', error.message);
       }
     }
-    
+
     // Always update in-memory object on req.participant and task map
     round1TaskMap.set(participant.id, chosenTask);
     participant.round1Task = chosenTask;
@@ -665,7 +665,7 @@ app.get('/api/round2/my-task', requireParticipant, async (req: AuthenticatedRequ
   try {
     const participant = req.participant!;
     const task = participant.round2Task || round2TaskMap.get(participant.id) || null;
-    
+
     res.json({
       success: true,
       task,
@@ -732,7 +732,7 @@ app.post('/api/round2/draw-task', requireParticipant, async (req: AuthenticatedR
             }
           }
         }
-      } catch {}
+      } catch { }
     } else {
       for (const p of memoryParticipants) {
         if (p.round2Task && p.round2Task.id) {
@@ -764,7 +764,7 @@ app.post('/api/round2/draw-task', requireParticipant, async (req: AuthenticatedR
         console.warn('Supabase round2_task update warning:', error.message);
       }
     }
-    
+
     // Always update in-memory object on req.participant and task map
     round2TaskMap.set(participant.id, chosenTask);
     participant.round2Task = chosenTask;
@@ -824,55 +824,6 @@ app.get('/api/admin/me', async (req: Request, res: Response) => {
 app.post('/api/admin/logout', (_req: Request, res: Response) => {
   res.clearCookie('pw_admin_session');
   res.json({ success: true });
-});
-
-app.post('/api/admin/import-participants', async (req: Request, res: Response) => {
-  try {
-    const { participants: newRecords } = req.body;
-    if (!Array.isArray(newRecords)) {
-      res.status(400).json({ error: 'Invalid payload' });
-      return;
-    }
-    let imported = 0;
-    for (const rec of newRecords) {
-      const regId = rec.registrationId || rec.registration_id;
-      const id = rec.id || `p-${regId.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-      const p: Participant = {
-        id,
-        registrationId: regId,
-        name: rec.name,
-        email: rec.email,
-        college: rec.college || 'Participant Institute',
-        avatar: rec.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop&crop=face',
-        round1Score: 0,
-        round2Score: 0,
-        round3Score: 0,
-        authenticityBonusTotal: 0,
-        totalScore: 0,
-        rank: 1,
-        status: 'active',
-        submissionsCount: 0
-      };
-
-      if (supabase) {
-        await supabase.from('participants').upsert({
-          id: p.id,
-          registration_id: p.registrationId,
-          name: p.name,
-          email: p.email,
-          college: p.college
-        }, { onConflict: 'registration_id' });
-      } else {
-        const idx = memoryParticipants.findIndex(m => m.registrationId === p.registrationId || m.email.toLowerCase() === p.email.toLowerCase());
-        if (idx >= 0) memoryParticipants[idx] = { ...memoryParticipants[idx], ...p };
-        else memoryParticipants.push(p);
-      }
-      imported++;
-    }
-    res.json({ success: true, count: imported });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Import failed' });
-  }
 });
 
 // 3. Prompt Analysis (Rate Limited)
@@ -1282,10 +1233,10 @@ app.patch('/api/submissions/:id/grade', requireAdmin, async (req: Request, res: 
     }
 
     const authenticityBonus = Math.min(10, Math.round(sub.authenticity.authenticityScore * 0.1));
-    const totalScore = Math.min(100, (Number(promptQuality) || 0) + 
-                       (Number(outputRelevance) || 0) + 
-                       (Number(creativity) || 0) + 
-                       (Number(technicalExecution) || 0));
+    const totalScore = Math.min(100, (Number(promptQuality) || 0) +
+      (Number(outputRelevance) || 0) +
+      (Number(creativity) || 0) +
+      (Number(technicalExecution) || 0));
 
     const scores: SubmissionScores = {
       promptQuality: Number(promptQuality) || 0,
@@ -1401,7 +1352,7 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
       try {
         await jwtVerify(adminToken, ADMIN_SESSION_SECRET_KEY);
         isAdmin = true;
-      } catch {}
+      } catch { }
     }
 
     let rawParticipants: Participant[] = [];
@@ -1551,27 +1502,23 @@ app.post('/api/seed-reset', requireAdmin, async (_req: Request, res: Response) =
 // ------------------- SERVER SETUP -------------------
 
 async function startServer() {
-  app.listen(PORT, () => {
-    console.log(`Prompt Wars server listening on http://localhost:${PORT}`);
-  });
-
   if (process.env.NODE_ENV !== 'production') {
-    try {
-      const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-      });
-      app.use(vite.middlewares);
-    } catch (err) {
-      console.warn('Vite dev middleware warning:', err);
-    }
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Prompt Wars server listening on http://0.0.0.0:${PORT}`);
+  });
 }
 
 if (!process.env.VERCEL) {

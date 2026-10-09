@@ -208,18 +208,6 @@ async function run() {
   }
 
   if (!supabase) {
-    const port = process.env.PORT || 3000;
-    try {
-      const res = await fetch(`http://localhost:${port}/api/admin/import-participants`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participants: validRecords })
-      });
-      if (res.ok) {
-        console.log(`[IN-MEMORY MODE] Upserted ${validRecords.length} records into local dev server!`);
-        return;
-      }
-    } catch {}
     console.error(`Error: Supabase environment variables (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY) are not set. Cannot perform live import.`);
     process.exit(1);
   }
