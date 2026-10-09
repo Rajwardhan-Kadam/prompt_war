@@ -1608,6 +1608,9 @@ app.post('/api/submissions', requireParticipant, async (req: AuthenticatedReques
       if (requestedRound === 2 && !participant.round2Task) {
         partUpdates.round2_task = { title: 'Assigned Scenario Sprint', scenario: assignedThemeOrChit };
       }
+      if (requestedRound === 3 && !participant.round3Task) {
+        partUpdates.round3_task = { title: 'Assigned Problem Statement', problemStatement: assignedThemeOrChit };
+      }
       await supabase.from('participants').update(partUpdates).eq('id', participant.id);
     } else {
       memorySubmissions.unshift(newSubmission);
@@ -1618,6 +1621,9 @@ app.post('/api/submissions', requireParticipant, async (req: AuthenticatedReques
       }
       if (requestedRound === 2 && !participant.round2Task) {
         participant.round2Task = { id: 1, title: 'Assigned Scenario Sprint', scenario: assignedThemeOrChit };
+      }
+      if (requestedRound === 3 && !participant.round3Task) {
+        participant.round3Task = { id: 1, title: 'Assigned Problem Statement', problemStatement: assignedThemeOrChit, category: 'Web Application', theme: 'Grand Finale', mandatoryFeatures: [] };
       }
     }
 
