@@ -255,7 +255,7 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
   "improvementTips": string[]
 }`;
     const response = await geminiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-2.0-flash',
       contents: `Analyze contestant prompt:\n"""\n${promptText}\n"""`,
       config: { systemInstruction: systemPrompt, responseMimeType: 'application/json' }
     });
@@ -274,7 +274,8 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
       improvementTips: parsed.improvementTips || heuristicResult.improvementTips,
       analyzedAt: new Date().toISOString()
     };
-  } catch (err) {
+  } catch (err: any) {
+    console.warn('Gemini prompt evaluation fallback used:', err?.message || err);
     return heuristicResult;
   }
 }
@@ -297,7 +298,7 @@ async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<
     technicalExecution,
     authenticityBonus,
     totalScore,
-    gradedBy: geminiClient ? 'Gemini 2.5 Flash AI Evaluator' : 'Heuristic Auto-Referee',
+    gradedBy: geminiClient ? 'Gemini 2.0 Flash AI Evaluator' : 'Heuristic Auto-Referee',
     feedback: sub.authenticity.isAiGenerated
       ? 'Evaluated entry. Prompt contains repetitive AI formulaic keywords. Originality bonus partial.'
       : `Evaluated entry. Strong prompt structure aligning well with task "${sub.assignedThemeOrChit.slice(0, 30)}...".`,
@@ -335,7 +336,7 @@ EVALUATION REQUEST:
 Evaluate prompt quality, prompt-to-task alignment, creativity, and technical execution. Do not analyze image files. Return JSON only.`;
 
     const response = await geminiClient.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: [promptText],
       config: {
         systemInstruction: systemPrompt,
@@ -358,12 +359,12 @@ Evaluate prompt quality, prompt-to-task alignment, creativity, and technical exe
       technicalExecution: te,
       authenticityBonus: ab,
       totalScore: tot,
-      gradedBy: 'Gemini 2.5 Flash AI Evaluator',
+      gradedBy: 'Gemini 2.0 Flash AI Evaluator',
       feedback: parsed.feedback || fallbackScores.feedback,
       gradedAt: new Date().toISOString()
     };
-  } catch (err) {
-    console.warn('Gemini evaluation fallback used:', err);
+  } catch (err: any) {
+    console.warn('Gemini evaluation fallback used:', err?.message || err);
     return fallbackScores;
   }
 }
