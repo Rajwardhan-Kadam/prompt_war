@@ -1439,13 +1439,9 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
     const r3RankMap = computeRanks(rawParticipants, 'round3Score');
 
     const sanitized = rawParticipants.map(p => {
-      const r1Allowed = isLeaderboardPublished || Boolean(publishedRounds?.round1);
-      const r2Allowed = isLeaderboardPublished || Boolean(publishedRounds?.round2);
-      const r3Allowed = isLeaderboardPublished || Boolean(publishedRounds?.round3);
-
-      const r1Score = r1Allowed ? p.round1Score : 0;
-      const r2Score = r2Allowed ? p.round2Score : 0;
-      const r3Score = r3Allowed ? p.round3Score : 0;
+      const r1Score = Number(p.round1Score || 0);
+      const r2Score = Number(p.round2Score || 0);
+      const r3Score = Number(p.round3Score || 0);
       const totalScore = r1Score + r2Score + r3Score;
 
       const r1Rank = r1RankMap.get(p.id) || 1;

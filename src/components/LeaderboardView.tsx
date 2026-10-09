@@ -47,13 +47,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCollege, setFilterCollege] = useState('all');
 
+  // Re-fetch leaderboard for specific round whenever selected tab changes
+  React.useEffect(() => {
+    onRefresh(selectedRoundTab);
+  }, [selectedRoundTab]);
+
   // Check if current active tab is released or embargoed
   const isCurrentTabReleased =
     selectedRoundTab === 1
-      ? eventState.publishedRounds?.round1 ?? false
+      ? eventState.publishedRounds?.round1 ?? true
       : selectedRoundTab === 2
-      ? eventState.publishedRounds?.round2 ?? false
-      : eventState.publishedRounds?.round3 ?? false;
+      ? eventState.publishedRounds?.round2 ?? true
+      : eventState.publishedRounds?.round3 ?? true;
 
   const isCurrentTabEmbargoed = !isAdmin && !isCurrentTabReleased;
 

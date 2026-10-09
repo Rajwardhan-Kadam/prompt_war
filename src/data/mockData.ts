@@ -145,11 +145,11 @@ export const INITIAL_EVENT_STATE: EventState = {
       type: 'urgent'
     }
   ],
-  isLeaderboardPublished: false,
+  isLeaderboardPublished: true,
   publishedRounds: {
-    round1: false,
-    round2: false,
-    round3: false
+    round1: true,
+    round2: true,
+    round3: true
   },
   isRoundActive: true,
   roundStatuses: {
