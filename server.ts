@@ -1194,14 +1194,6 @@ async function saveAndApplySubmissionScores(sub: Submission, scores: SubmissionS
         status: participant.status,
         updated_at: new Date().toISOString()
       }).eq('id', participant.id);
-
-      // Recompute ranks in DB
-      const { data: allParts } = await supabase.from('participants').select('id, total_score').order('total_score', { ascending: false });
-      if (allParts) {
-        for (let i = 0; i < allParts.length; i++) {
-          await supabase.from('participants').update({ rank: i + 1 }).eq('id', allParts[i].id);
-        }
-      }
     }
   } else {
     const participant = memoryParticipants.find(p => p.id === sub.participantId);
@@ -1313,12 +1305,23 @@ app.post('/api/admin/auto-grade-round1', requireAdmin, async (_req: Request, res
       pendingSubs = memorySubmissions.filter(s => s.roundId === 1);
     }
 
-    let gradedCount = 0;
-    for (const sub of pendingSubs) {
-      const aiScores = await evaluateSubmissionWithGeminiMultimodal(sub);
-      await saveAndApplySubmissionScores(sub, aiScores);
-      gradedCount++;
+    if (pendingSubs.length === 0) {
+      res.json({
+        success: true,
+        gradedCount: 0,
+        message: 'No Round 1 submissions found to grade.'
+      });
+      return;
     }
+
+    // Process all pending submissions concurrently
+    const gradedResults = await Promise.all(
+      pendingSubs.map(async (sub) => {
+        const aiScores = await evaluateSubmissionWithGeminiMultimodal(sub);
+        await saveAndApplySubmissionScores(sub, aiScores);
+        return sub;
+      })
+    );
 
     // Automatically publish Round 1 on leaderboard
     eventState.publishedRounds.round1 = true;
@@ -1331,10 +1334,11 @@ app.post('/api/admin/auto-grade-round1', requireAdmin, async (_req: Request, res
 
     res.json({
       success: true,
-      gradedCount,
-      message: `Successfully evaluated ${gradedCount} Round 1 submissions with Gemini AI and updated leaderboard!`
+      gradedCount: gradedResults.length,
+      message: `Successfully evaluated ${gradedResults.length} Round 1 submissions with Gemini AI and updated leaderboard!`
     });
   } catch (err: any) {
+    console.error('Auto-grade error:', err);
     res.status(500).json({ error: err?.message || 'Batch autograding failed' });
   }
 });
