@@ -1474,35 +1474,30 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
       };
     });
 
-    // Sort depending on requested round filter
+    // Filter and sort depending on requested round filter (only include evaluated participants with score > 0)
+    let result = sanitized;
     if (roundParam === '1') {
-      sanitized.sort((a, b) => {
-        if (b.round1Score !== a.round1Score) return b.round1Score - a.round1Score;
-        return b.totalScore - a.totalScore;
-      });
-      sanitized.forEach((p) => { p.rank = p.round1Rank; });
+      result = sanitized.filter(p => Number(p.round1Score || 0) > 0);
+      result.sort((a, b) => b.round1Score - a.round1Score);
+      result.forEach((p, idx) => { p.rank = idx + 1; p.round1Rank = idx + 1; });
     } else if (roundParam === '2') {
-      sanitized.sort((a, b) => {
-        if (b.round2Score !== a.round2Score) return b.round2Score - a.round2Score;
-        return b.totalScore - a.totalScore;
-      });
-      sanitized.forEach((p) => { p.rank = p.round2Rank; });
+      result = sanitized.filter(p => Number(p.round2Score || 0) > 0);
+      result.sort((a, b) => b.round2Score - a.round2Score);
+      result.forEach((p, idx) => { p.rank = idx + 1; p.round2Rank = idx + 1; });
     } else if (roundParam === '3') {
-      sanitized.sort((a, b) => {
-        if (b.round3Score !== a.round3Score) return b.round3Score - a.round3Score;
-        return b.totalScore - a.totalScore;
-      });
-      sanitized.forEach((p) => { p.rank = p.round3Rank; });
+      result = sanitized.filter(p => Number(p.round3Score || 0) > 0);
+      result.sort((a, b) => b.round3Score - a.round3Score);
+      result.forEach((p, idx) => { p.rank = idx + 1; p.round3Rank = idx + 1; });
     } else {
-      sanitized.sort((a, b) => b.totalScore - a.totalScore);
+      result.sort((a, b) => b.totalScore - a.totalScore);
       let cur = 1;
-      sanitized.forEach((p, idx) => {
-        if (idx > 0 && p.totalScore < sanitized[idx - 1].totalScore) cur = idx + 1;
+      result.forEach((p, idx) => {
+        if (idx > 0 && p.totalScore < result[idx - 1].totalScore) cur = idx + 1;
         p.rank = cur;
       });
     }
 
-    res.json(sanitized);
+    res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to generate leaderboard' });
   }

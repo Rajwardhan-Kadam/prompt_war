@@ -62,14 +62,22 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
 
   const isCurrentTabEmbargoed = !isAdmin && !isCurrentTabReleased;
 
-  // Filter participants
+  // Filter participants: matches search, college, and MUST have submitted & received an evaluated score (> 0) for active round tab
   const filtered = participants.filter((p) => {
     const matchesSearch =
       (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.registrationId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.college || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCollege = filterCollege === 'all' || p.college === filterCollege;
-    return matchesSearch && matchesCollege;
+    
+    const roundScore =
+      selectedRoundTab === 1
+        ? Number(p.round1Score || 0)
+        : selectedRoundTab === 2
+        ? Number(p.round2Score || 0)
+        : Number(p.round3Score || 0);
+
+    return matchesSearch && matchesCollege && roundScore > 0;
   });
 
   // Sort participants depending on active round tab
@@ -665,10 +673,10 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
             <div className="bg-white border-4 border-black p-8 sm:p-12 text-center rounded-2xl shadow-[8px_8px_0_#000] font-mono">
               <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-3 stroke-2" />
               <h3 className="font-black text-lg sm:text-xl uppercase text-black mb-1">
-                NO REGISTERED PARTICIPANTS YET
+                NO EVALUATED SUBMISSIONS FOR ROUND 0{selectedRoundTab} YET
               </h3>
               <p className="text-xs sm:text-sm text-gray-600 font-bold max-w-md mx-auto">
-                Official standings will update on the leaderboard as soon as contestants register and submit solutions!
+                Only contestants who have submitted solutions and received an evaluated score for Round 0{selectedRoundTab} appear on this leaderboard.
               </p>
             </div>
           )}
