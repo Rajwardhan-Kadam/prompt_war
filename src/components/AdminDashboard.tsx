@@ -58,6 +58,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isGrading, setIsGrading] = useState(false);
   const [isAutoGradingRound1, setIsAutoGradingRound1] = useState(false);
   const [isAutoGradingRound2, setIsAutoGradingRound2] = useState(false);
+  const [isAutoGradingRound3, setIsAutoGradingRound3] = useState(false);
   const [isAiGradingSingle, setIsAiGradingSingle] = useState(false);
 
   // Batch Gemini AI Autograding for Round 1
@@ -95,6 +96,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       alert(err?.message || 'Failed to autograde Round 2 submissions.');
     } finally {
       setIsAutoGradingRound2(false);
+    }
+  };
+
+  // Batch Gemini AI Autograding for Round 3
+  const handleAutoGradeRound3 = async () => {
+    if (!window.confirm('Run Gemini AI evaluation for all Round 3 Grand Finale submissions and calculate official Round 3 leaderboard scores?')) return;
+    setIsAutoGradingRound3(true);
+    sound.playBeep(600, 0.05);
+
+    try {
+      const res = await api.autoGradeRound3();
+      sound.playSuccessChime();
+      alert(res.message || `Successfully evaluated ${res.gradedCount} Round 3 submissions with Gemini AI!`);
+      onRefreshData();
+    } catch (err: any) {
+      sound.playWarningPing();
+      alert(err?.message || 'Failed to autograde Round 3 submissions.');
+    } finally {
+      setIsAutoGradingRound3(false);
     }
   };
 
@@ -344,6 +364,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             <Sparkles className={`w-4 h-4 text-black ${isAutoGradingRound2 ? 'animate-spin' : ''}`} />
             <span>{isAutoGradingRound2 ? 'EVALUATING R2...' : 'AUTOGRADE R2'}</span>
+          </button>
+
+          <button
+            onClick={handleAutoGradeRound3}
+            disabled={isAutoGradingRound3}
+            className="neo-btn bg-[#FF4081] hover:bg-[#00C853] text-white hover:text-black px-3.5 py-2 text-xs flex items-center space-x-1.5 cursor-pointer shadow-[3px_3px_0_#000]"
+          >
+            <Sparkles className={`w-4 h-4 text-white hover:text-black ${isAutoGradingRound3 ? 'animate-spin' : ''}`} />
+            <span>{isAutoGradingRound3 ? 'EVALUATING R3...' : 'AUTOGRADE R3'}</span>
           </button>
 
           <button

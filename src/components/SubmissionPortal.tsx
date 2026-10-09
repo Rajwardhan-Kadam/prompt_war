@@ -21,6 +21,7 @@ import { api } from '../services/api';
 import { sound } from '../utils/audio';
 import { Round1TopicDrawer } from './Round1TopicDrawer';
 import { Round2TopicDrawer } from './Round2TopicDrawer';
+import { Round3TopicDrawer } from './Round3TopicDrawer';
 
 interface SubmissionPortalProps {
   activeRound: RoundNumber;
@@ -576,23 +577,10 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                 )}
 
                 {activeRound === 3 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {SAMPLE_PRODUCT_REQUIREMENTS.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => selectProductReq(item.requirement)}
-                        className={`text-left p-3 border-3 border-black transition-all cursor-pointer ${
-                          assignedTheme === item.requirement
-                            ? 'bg-[#00C853] text-black shadow-[4px_4px_0_#000] font-bold'
-                            : 'bg-white text-black shadow-[2px_2px_0_#000] hover:bg-[#F4F4F0]'
-                        }`}
-                      >
-                        <div className="font-heading font-black text-xs uppercase mb-1">{item.title}</div>
-                        <div className="text-[10px] font-mono line-clamp-2">{item.requirement}</div>
-                      </button>
-                    ))}
-                  </div>
+                  <Round3TopicDrawer
+                    currentUser={currentUser}
+                    onTaskAssigned={(taskStr) => setAssignedTheme(taskStr)}
+                  />
                 )}
               </div>
 
@@ -772,14 +760,13 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-mono font-black text-black uppercase mb-1">
-                        PROTOTYPE URL (DEPLOYED):
+                        DEPLOYED WEBSITE URL (OPTIONAL):
                       </label>
                       <input
                         type="url"
-                        required
                         value={demoUrl}
                         onChange={(e) => setDemoUrl(e.target.value)}
-                        placeholder="https://my-prototype.web.app"
+                        placeholder="https://my-family-tree.vercel.app or https://courtcraft.netlify.app"
                         className="w-full neo-input px-3 py-2 text-xs font-mono text-black"
                       />
                     </div>

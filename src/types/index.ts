@@ -87,6 +87,15 @@ export interface Round2Task {
   category?: string;
 }
 
+export interface Round3Task {
+  id: number;
+  title: string;
+  theme: string;
+  category: string;
+  problemStatement: string;
+  mandatoryFeatures: string[];
+}
+
 export interface Participant {
   id: string;
   registrationId: string;
@@ -109,6 +118,7 @@ export interface Participant {
   submissionsCount: number;
   round1Task?: Round1Task | null;
   round2Task?: Round2Task | null;
+  round3Task?: Round3Task | null;
 }
 
 export interface EventState {
@@ -152,5 +162,6 @@ export interface ParticipantUser {
   college?: string;
   round1Task?: Round1Task | null;
   round2Task?: Round2Task | null;
+  round3Task?: Round3Task | null;
 }
 

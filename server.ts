@@ -16,6 +16,7 @@ import {
 import { Submission, Participant, EventState, PromptAuthenticityResult, SubmissionScores } from './src/types/index.ts';
 import { ROUND1_TASKS, Round1Task } from './src/data/round1Tasks.ts';
 import { ROUND2_TASKS, Round2Task } from './src/data/round2Tasks.ts';
+import { ROUND3_TASKS, Round3Task } from './src/data/round3Tasks.ts';
 
 dotenv.config();
 
@@ -95,7 +96,8 @@ function mapParticipantFromDb(row: any): Participant {
     status: row.status || 'active',
     submissionsCount: Number(row.submissions_count || 0),
     round1Task: row.round1_task ? (typeof row.round1_task === 'string' ? JSON.parse(row.round1_task) : row.round1_task) : null,
-    round2Task: row.round2_task ? (typeof row.round2_task === 'string' ? JSON.parse(row.round2_task) : row.round2_task) : null
+    round2Task: row.round2_task ? (typeof row.round2_task === 'string' ? JSON.parse(row.round2_task) : row.round2_task) : null,
+    round3Task: row.round3_task ? (typeof row.round3_task === 'string' ? JSON.parse(row.round3_task) : row.round3_task) : null
   };
 }
 
@@ -456,8 +458,17 @@ async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<
     fallbackFeedback = hasScenarioMention
       ? `Round 02 Scenario Sprint: Prompt explicitly addresses assigned scenario "${assignedScenario.slice(0, 40)}..." with structured explanation.`
       : `Round 02 Scenario Sprint: Prompt fails to clearly state or incorporate the assigned scenario "${assignedScenario.slice(0, 40)}...". Please explicitly state and explain your scenario.`;
+  } else if (sub.roundId === 3) {
+    // Round 3 Grand Finale: Evaluate assigned Problem Statement (Roots & Relations vs CourtCraft) and mandatory features
+    const r3Keywords = ['tree', 'generation', 'member', 'family', 'jersey', 'cart', 'checkout', 'size', 'color', 'login', 'password', 'navigat'];
+    const r3MatchCount = r3Keywords.filter(k => cleanPrompt.includes(k)).length;
+    fallbackOutputRelevance = Math.min(25, Math.max(12, Math.round(14 + r3MatchCount * 1.5)));
+    fallbackPromptQuality = Math.min(25, Math.max(12, Math.round(14 + (wordCount / 12))));
+    fallbackCreativity = Math.min(25, Math.max(12, Math.round(15 + (sub.authenticity.authenticityScore * 0.08))));
+    fallbackTechnicalExecution = Math.min(25, Math.max(12, Math.round(15 + (sub.demoUrl ? 5 : 2))));
+    fallbackFeedback = `Round 03 Finale: Prompt evaluated against assigned Problem Statement "${assignedScenario.slice(0, 40)}...". Includes mandatory features overview.`;
   } else {
-    // Round 1 / 3 Fallback
+    // Round 1 Fallback
     fallbackPromptQuality = Math.min(25, Math.max(12, Math.round(14 + (wordCount / 10))));
     fallbackOutputRelevance = Math.min(25, Math.max(10, Math.round(12 + (scenarioMatchRatio * 13))));
     fallbackCreativity = Math.min(25, Math.max(12, Math.round(15 + (sub.authenticity.authenticityScore * 0.08))));
@@ -550,8 +561,73 @@ INSTRUCTIONS:
 2. Evaluate how thoroughly and clearly the scenario problem and context are explained within the prompt.
 3. Return JSON only conforming strictly to the specified schema.`;
 
+    } else if (sub.roundId === 3) {
+      // Specialized System Prompt for Round 3 (Grand Finale - Roots & Relations vs CourtCraft)
+      systemPrompt = `You are the Lead Judge & AI Evaluator for PROMPT WARS 2026 - ROUND 03: THE GRAND FINALE.
+
+In Round 03, the top 10 finalists are randomly assigned one of two Problem Statements:
+- Problem Statement 1: Roots & Relations (Family Tree: visual tree, 3+ generations, clickable member photo/bio/accomplishments, navigation back to tree, password-protected login screen).
+- Problem Statement 2: CourtCraft (E-commerce Basketball Jersey Storefront: striking homepage featuring jersey, product mockups/price/material/features, size/color selectors, add-to-cart with visible counter, checkout order summary preview).
+
+CONTESTANT'S RANDOMLY ASSIGNED PROBLEM STATEMENT:
+"${assignedScenario}"
+
+EVALUATION CRITERIA & SCORING BREAKDOWN (0-100 TOTAL):
+
+1. PROBLEM STATEMENT ALIGNMENT & OUTPUT RELEVANCE (0-25 PTS):
+   - Evaluate whether the contestant's prompt(s) directly address and solve their assigned Problem Statement ("${assignedScenario}").
+   - If off-topic or completely ignores the assigned PS, cap outputRelevance at 0-8 PTS.
+
+2. MANDATORY FEATURES COVERAGE (0-25 PTS):
+   - Check coverage of all mandatory features required for their assigned PS.
+   - For Roots & Relations: visual tree, member click details modal, 3+ generations, navigation back to tree, password entry screen/login flow.
+   - For CourtCraft: homepage featuring jersey, product details (price, material, features), size & color options, add-to-cart interaction with visible counter, checkout/order summary preview.
+
+3. PROMPT QUALITY & SYSTEM ARCHITECTURE (0-25 PTS):
+   - Evaluate prompt structure, modular layout instructions, component breakdowns, state management specs, and engineering clarity.
+
+4. TECHNICAL EXECUTION & DEPLOYMENT EVIDENCE (0-25 PTS):
+   - Technical quality, styling tokens (dark mode/glassmorphism/gradients/animations), and functional flow.
+   - Deployed Demo URL Provided: ${sub.demoUrl ? `"${sub.demoUrl}" (Bonus evidence of working deployment)` : 'None provided (Optional)'}.
+
+5. ML AUTHENTICITY BONUS (0-10 PTS):
+   - Automatically assigned: ${authenticityBonus} PTS (based on prompt authenticity score of ${sub.authenticity.authenticityScore}%).
+
+FEEDBACK INSTRUCTIONS:
+- You MUST explicitly reference the contestant's assigned Problem Statement ("${assignedScenario}").
+- Detail which mandatory features were satisfied by their prompt(s).
+- Provide 2-3 concise sentences detailing strengths and areas for refinement.
+
+Output strictly valid JSON:
+{
+  "promptQuality": number (0-25),
+  "outputRelevance": number (0-25),
+  "creativity": number (0-25),
+  "technicalExecution": number (0-25),
+  "authenticityBonus": number (0-10),
+  "totalScore": number (0-100),
+  "feedback": string
+}`;
+
+      promptText = `
+EVALUATION REQUEST FOR ROUND 03 (GRAND FINALE):
+- Contestant: ${sub.participantName} (${sub.registrationId})
+- RANDOMLY ASSIGNED PROBLEM STATEMENT: "${assignedScenario}"
+- CONTESTANT'S SUBMITTED PROMPTS:
+"""
+${sub.promptText}
+"""
+- Permitted AI Tool Specified: "${sub.aiToolUsed}"
+- Optional Deployed Website URL: ${sub.demoUrl || 'None'}
+- PROMPT AUTHENTICITY SCORE: ${sub.authenticity.authenticityScore}% (Bonus: +${authenticityBonus} PTS)
+
+INSTRUCTIONS:
+1. Verify if the submitted prompts directly satisfy the contestant's assigned Problem Statement ("${assignedScenario}").
+2. Evaluate coverage of the mandatory features specified in their PS.
+3. Return JSON conforming strictly to the specified schema.`;
+
     } else {
-      // System Prompt for Round 1 & Round 3
+      // System Prompt for Round 1
       systemPrompt = `You are the Lead Judge & Evaluator for PROMPT WARS 2026.
 Your PRIMARY RESPONSIBILITY is to verify whether the contestant's submitted prompt satisfies the randomly assigned task brief given to them in Round 0${sub.roundId}.
 
@@ -1033,6 +1109,131 @@ app.post('/api/round2/draw-task', requireParticipant, async (req: AuthenticatedR
   } catch (err: any) {
     console.error('Error drawing Round 2 task:', err);
     res.status(500).json({ error: 'Failed to draw Round 2 scenario task' });
+  }
+});
+
+// ------------------- ROUND 3 RANDOM PROBLEM STATEMENT DRAW ENDPOINTS -------------------
+const round3TaskMap = new Map<string, Round3Task>();
+
+app.get('/api/round3/my-task', requireParticipant, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const participant = req.participant!;
+    const task = participant.round3Task || round3TaskMap.get(participant.id) || null;
+
+    res.json({
+      success: true,
+      task,
+      isAssigned: Boolean(task)
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve Round 3 task' });
+  }
+});
+
+app.post('/api/round3/draw-task', requireParticipant, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const participant = req.participant!;
+    const existingTask = participant.round3Task || round3TaskMap.get(participant.id);
+
+    // 1. If participant already has an assigned task, return it (1 chance only!)
+    if (existingTask) {
+      res.json({
+        success: true,
+        task: existingTask,
+        isAlreadyAssigned: true
+      });
+      return;
+    }
+
+    // 2. Enforce Round 3 Top 10 Cutoff check
+    let allR2Parts: { id: string; round2Score: number }[] = [];
+    if (supabase) {
+      const { data } = await supabase.from('participants').select('id, round2_score');
+      if (data) allR2Parts = data.map(d => ({ id: d.id, round2Score: Number(d.round2_score) || 0 }));
+    } else {
+      allR2Parts = memoryParticipants.map(p => ({ id: p.id, round2Score: p.round2Score || 0 }));
+    }
+    const participantR2Score = allR2Parts.find(p => p.id === participant.id)?.round2Score || 0;
+    const higherCountR2 = allR2Parts.filter(p => p.round2Score > participantR2Score).length;
+    const r2Rank = higherCountR2 + 1;
+    if (r2Rank > 10) {
+      res.status(403).json({
+        error: `Round 3 Qualification Cutoff: Only the Top 10 ranks from Round 02 qualify for Round 03 Finale. Your Round 02 rank is #${r2Rank}.`
+      });
+      return;
+    }
+
+    // 3. Fetch all current task assignments to enforce 50/50 distribution (5 participants per PS for 10 finalists)
+    const taskCounts: Record<number, number> = { 1: 0, 2: 0 };
+
+    for (const t of round3TaskMap.values()) {
+      if (t && t.id) {
+        taskCounts[t.id] = (taskCounts[t.id] || 0) + 1;
+      }
+    }
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('participants').select('round3_task').not('round3_task', 'is', null);
+        if (!error && data) {
+          for (const row of data) {
+            const t = typeof row.round3_task === 'string' ? JSON.parse(row.round3_task) : row.round3_task;
+            if (t && t.id) {
+              taskCounts[t.id] = (taskCounts[t.id] || 0) + 1;
+            }
+          }
+        }
+      } catch { }
+    } else {
+      for (const p of memoryParticipants) {
+        if (p.round3Task && p.round3Task.id) {
+          taskCounts[p.round3Task.id] = (taskCounts[p.round3Task.id] || 0) + 1;
+        }
+      }
+    }
+
+    // 4. Filter problem statements with count < 5 (5 per PS max)
+    let availableTasks = ROUND3_TASKS.filter(t => (taskCounts[t.id] || 0) < 5);
+
+    // Fallback: If both reach capacity or edge case, pick PS with lowest count
+    if (availableTasks.length === 0) {
+      const minCount = Math.min(...Object.values(taskCounts));
+      availableTasks = ROUND3_TASKS.filter(t => (taskCounts[t.id] || 0) === minCount);
+    }
+
+    // 5. Randomly pick one PS from available pool
+    const chosenTask = availableTasks[Math.floor(Math.random() * availableTasks.length)];
+
+    // 6. Store in DB row for this participant
+    if (supabase) {
+      const { error } = await supabase
+        .from('participants')
+        .update({ round3_task: chosenTask })
+        .eq('id', participant.id);
+
+      if (error) {
+        console.error(`❌ Failed to update round3_task in Supabase for participant ${participant.id} (${participant.registrationId}):`, error.message);
+      } else {
+        console.log(`✓ Stored Round 3 task in Supabase DB for participant ${participant.registrationId}`);
+      }
+    }
+
+    // Always update in-memory object on req.participant and task map
+    round3TaskMap.set(participant.id, chosenTask);
+    participant.round3Task = chosenTask;
+    const foundMem = memoryParticipants.find(p => p.id === participant.id);
+    if (foundMem) {
+      foundMem.round3Task = chosenTask;
+    }
+
+    res.json({
+      success: true,
+      task: chosenTask,
+      isAlreadyAssigned: false
+    });
+  } catch (err: any) {
+    console.error('Error drawing Round 3 task:', err);
+    res.status(500).json({ error: 'Failed to draw Round 3 problem statement task' });
   }
 });
 
@@ -1653,6 +1854,17 @@ app.post('/api/admin/auto-grade-round2', requireAdmin, async (_req: Request, res
   } catch (err: any) {
     console.error('Auto-grade Round 2 error:', err);
     res.status(500).json({ error: err?.message || 'Batch autograding failed for Round 2' });
+  }
+});
+
+// POST /api/admin/auto-grade-round3 (Require Admin - Batch Autograde Round 3 & Update Leaderboard)
+app.post('/api/admin/auto-grade-round3', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const result = await autoGradeRoundBatch(3);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Auto-grade Round 3 error:', err);
+    res.status(500).json({ error: err?.message || 'Batch autograding failed for Round 3' });
   }
 });
 

@@ -108,6 +108,24 @@ export const api = {
     return data;
   },
 
+  // ------------------- ROUND 3 TASK DRAWING -------------------
+  async getMyRound3Task(): Promise<{ success: boolean; task: any; isAssigned: boolean }> {
+    const res = await fetch('/api/round3/my-task', { credentials: 'same-origin' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to retrieve Round 3 task');
+    return data;
+  },
+
+  async drawRound3Task(): Promise<{ success: boolean; task: any; isAlreadyAssigned: boolean }> {
+    const res = await fetch('/api/round3/draw-task', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to draw Round 3 task');
+    return data;
+  },
+
   // ------------------- EVENT STATE -------------------
   async getEventState(): Promise<EventState> {
     const res = await fetch('/api/event-state', { credentials: 'same-origin' });
@@ -216,6 +234,16 @@ export const api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Batch autograding failed for Round 2');
+    return data;
+  },
+
+  async autoGradeRound3(): Promise<{ success: boolean; gradedCount: number; message: string }> {
+    const res = await fetch('/api/admin/auto-grade-round3', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Batch autograding failed for Round 3');
     return data;
   },
 

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.participants (
   submissions_count INTEGER DEFAULT 0,
   round1_task JSONB,
   round2_task JSONB,
+  round3_task JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
