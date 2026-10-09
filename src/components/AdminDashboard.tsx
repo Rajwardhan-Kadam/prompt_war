@@ -279,13 +279,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     document.body.removeChild(link);
   };
 
+  const calculateBonus = (score: number) => {
+    if (score >= 90) return 10;
+    if (score >= 80) return 8;
+    if (score >= 70) return 6;
+    if (score >= 60) return 4;
+    if (score >= 50) return 2;
+    return 0;
+  };
+
   const currentTotalGrade =
     selectedSubmission
-      ? promptQuality +
+      ? Math.min(100, promptQuality +
         outputRelevance +
         creativity +
         technicalExecution +
-        Math.min(10, Math.round(selectedSubmission.authenticity.authenticityScore * 0.1))
+        calculateBonus(selectedSubmission.authenticity.authenticityScore))
       : 0;
 
   return (
@@ -1073,7 +1082,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="p-3 rounded-xl bg-[#00C853]/20 border-2 border-black flex items-center justify-between text-xs font-mono font-black">
                   <span className="uppercase">ML AUTHENTICITY BONUS:</span>
                   <span className="bg-black text-[#00C853] px-2 py-0.5 rounded">
-                    +{Math.min(10, Math.round(selectedSubmission.authenticity.authenticityScore * 0.1))} PTS
+                    +{calculateBonus(selectedSubmission.authenticity.authenticityScore)} PTS
                   </span>
                 </div>
 

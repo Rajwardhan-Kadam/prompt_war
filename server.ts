@@ -167,11 +167,37 @@ if (geminiKey) {
   }
 }
 
+function calculateAuthenticityBonus(authenticityScore: number): number {
+  if (authenticityScore >= 90) return 10;
+  if (authenticityScore >= 80) return 8;
+  if (authenticityScore >= 70) return 6;
+  if (authenticityScore >= 60) return 4;
+  if (authenticityScore >= 50) return 2;
+  return 0;
+}
+
 const KNOWN_AI_CLICHES = [
-  'masterpiece', '8k', 'photorealistic', 'hyperrealistic', 'ultra-realistic', 'octane render',
-  'unreal engine', 'trending on artstation', 'cinematic lighting', 'volumetric lighting',
-  'highly detailed', 'intricate detail', 'sharp focus', 'studio lighting', 'depth of field',
-  'ray tracing', 'act as an expert', 'act as a senior', 'provide step-by-step', 'as an ai language model'
+  // ChatGPT & LLM Openers / Prefixes
+  'certainly', 'certainly!', 'here is a', 'here\'s a', 'here is the', 'here\'s the',
+  'below is a', 'below is the', 'i\'d be happy to', 'sure, here', 'let\'s delve',
+  'in this scenario', 'as an ai', 'as an ai language model', 'i cannot fulfill',
+
+  // ChatGPT & LLM Transition / Filler Buzzwords
+  'delve into', 'tapestry of', 'testament to', 'beacon of', 'fostering a', 'harnessing the',
+  'unwavering', 'key takeaways', 'crucial role', 'vital component', 'in conclusion',
+  'in summary', 'seamlessly', 'leverage', 'ever-evolving', 'vital role', 'crucial aspect',
+
+  // LLM Meta-Prompting & Scaffolding Patterns
+  'act as a', 'act as an', 'you are an expert', 'you are a senior', 'your task is to',
+  'step-by-step guide', 'provide a comprehensive', 'design a robust', 'create a detailed',
+  'write a comprehensive', 'please ensure that', 'in order to achieve', 'make sure to include',
+  'system prompt:', 'user prompt:', 'roleplay as',
+
+  // Image AI Generation Clichés
+  'masterpiece', '8k', '4k', 'photorealistic', 'hyperrealistic', 'ultra-realistic',
+  'octane render', 'unreal engine', 'trending on artstation', 'cinematic lighting',
+  'volumetric lighting', 'highly detailed', 'intricate detail', 'sharp focus',
+  'studio lighting', 'depth of field', 'ray tracing', 'unreal engine 5', 'award winning'
 ];
 
 function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
@@ -194,45 +220,116 @@ function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
     };
   }
 
+  // 1. Detect AI Clichés & LLM Phrases
   const detectedMarkers: string[] = [];
   for (const phrase of KNOWN_AI_CLICHES) {
     const regex = new RegExp(`\\b${phrase.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
-    if (regex.test(lower)) detectedMarkers.push(phrase);
+    if (regex.test(lower)) {
+      if (!detectedMarkers.includes(phrase)) {
+        detectedMarkers.push(phrase);
+      }
+    }
   }
 
+  // 2. Vocabulary Diversity (Type-Token Ratio)
   const words = clean.split(/\s+/).map(w => w.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean);
   const uniqueWords = new Set(words);
   const vocabularyDiversity = words.length > 0 ? Math.min(100, Math.round((uniqueWords.size / words.length) * 100)) : 50;
 
-  const sentences = clean.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-  let burstiness = 70;
-  if (sentences.length > 1) {
-    const lengths = sentences.map(s => s.split(/\s+/).length);
-    const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-    const variance = lengths.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / lengths.length;
-    burstiness = Math.min(100, Math.round((Math.sqrt(variance) / (avg || 1)) * 50 + 40));
+  // 3. Structural & Formatting AI Markers
+  let structuralPenalty = 0;
+  // ChatGPT openers check
+  const chatGptOpeners = [
+    /^certainly/i, /^here (is|'s) (a|the)/i, /^sure,/i, /^as an ai/i,
+    /^act as (a|an)/i, /^you are (a|an)/i, /^in this (scenario|task)/i,
+    /^create a (comprehensive|detailed|robust)/i, /^design a (comprehensive|robust)/i,
+    /^write a (comprehensive|detailed)/i, /^i want you to act as/i
+  ];
+  const matchedOpener = chatGptOpeners.some(rgx => rgx.test(clean));
+  if (matchedOpener) {
+    structuralPenalty += 40;
   }
 
-  const clichéPenalty = Math.min(75, detectedMarkers.length * 15);
-  let authenticityScore = Math.round(100 - clichéPenalty + (vocabularyDiversity * 0.1) + (burstiness * 0.1));
-  authenticityScore = Math.max(12, Math.min(98, authenticityScore));
+  // Markdown lists & structured headers check (typical of ChatGPT pastes)
+  const bulletCount = (clean.match(/^[\s]*[-*•]\s+/gm) || []).length;
+  const numberedListCount = (clean.match(/^[\s]*\d+[\.\)]\s+/gm) || []).length;
+  const boldHeaderCount = (clean.match(/\*\*[^*]+\*\*/g) || []).length;
+  if (bulletCount >= 3 || numberedListCount >= 3 || boldHeaderCount >= 3) {
+    structuralPenalty += 20;
+  }
 
-  const isAiGenerated = authenticityScore < 50;
+  // 4. Burstiness (Sentence Length Variance)
+  const sentences = clean.split(/[.!?\n]+/).map(s => s.trim()).filter(Boolean);
+  let burstiness = 50;
+  if (sentences.length > 1) {
+    const lengths = sentences.map(s => s.split(/\s+/).length).filter(l => l > 0);
+    if (lengths.length > 1) {
+      const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+      const variance = lengths.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / lengths.length;
+      const stdDev = Math.sqrt(variance);
+      const cv = avg > 0 ? stdDev / avg : 0;
+      burstiness = Math.min(100, Math.round(cv * 100));
+      // Low CV (< 0.35) means unnatural sentence length uniformity -> ChatGPT penalty
+      if (cv < 0.35) {
+        structuralPenalty += 15;
+      }
+    }
+  }
+
+  // 5. Calculate Final Authenticity Score
+  const markerPenalty = Math.min(75, detectedMarkers.length * 20);
+  let baseScore = 95 - markerPenalty - structuralPenalty;
+  
+  if (markerPenalty === 0 && structuralPenalty === 0) {
+    baseScore += Math.round((vocabularyDiversity - 50) * 0.1);
+  }
+
+  const authenticityScore = Math.max(10, Math.min(98, Math.round(baseScore)));
+  const isAiGenerated = authenticityScore < 60;
+
   let verdict: 'Human Crafted (Self-Made)' | 'Likely AI Generated / Boilerplate' | 'Hybrid / AI-Assisted' = 'Human Crafted (Self-Made)';
-  if (authenticityScore <= 45) verdict = 'Likely AI Generated / Boilerplate';
-  else if (authenticityScore < 75) verdict = 'Hybrid / AI-Assisted';
+  if (authenticityScore < 45) {
+    verdict = 'Likely AI Generated / Boilerplate';
+  } else if (authenticityScore < 75) {
+    verdict = 'Hybrid / AI-Assisted';
+  }
+
+  const aiProbability = parseFloat(((100 - authenticityScore) / 100).toFixed(2));
+
+  let reasoning = `Authenticity evaluated at ${authenticityScore}%.`;
+  if (matchedOpener) {
+    reasoning += ` Detected formulaic ChatGPT / LLM opener phrasing.`;
+  }
+  if (detectedMarkers.length > 0) {
+    reasoning += ` Flagged ${detectedMarkers.length} AI marker phrase(s): ${detectedMarkers.slice(0, 3).join(', ')}.`;
+  }
+  if (structuralPenalty >= 20 && !matchedOpener) {
+    reasoning += ` Heavy LLM template formatting & uniform cadence detected.`;
+  }
+  if (detectedMarkers.length === 0 && structuralPenalty === 0) {
+    reasoning = `Authenticity evaluated at ${authenticityScore}%. Prompt displays natural human composition & creative phrasing.`;
+  }
 
   return {
     authenticityScore,
     isAiGenerated,
-    aiProbability: parseFloat(((100 - authenticityScore) / 100).toFixed(2)),
+    aiProbability,
     verdict,
-    confidence: 88,
-    metrics: { burstiness, entropyScore: 80, formulaicMarkersCount: detectedMarkers.length, vocabularyDiversity },
+    confidence: 90,
+    metrics: {
+      burstiness,
+      entropyScore: Math.min(100, Math.round(vocabularyDiversity * 0.9 + burstiness * 0.1)),
+      formulaicMarkersCount: detectedMarkers.length,
+      vocabularyDiversity
+    },
     detectedMarkers,
     flaggedPhrases: detectedMarkers,
-    reasoning: `Authenticity calculated at ${authenticityScore}%. ${detectedMarkers.length} AI markers detected.`,
-    improvementTips: detectedMarkers.length > 0 ? [`Remove formulaic words: ${detectedMarkers.slice(0, 2).join(', ')}.`] : ["Strong human-authored composition."],
+    reasoning,
+    improvementTips: detectedMarkers.length > 0
+      ? [`Remove formulaic AI markers like "${detectedMarkers[0]}".`, "Use your own natural domain terms instead of template phrases."]
+      : matchedOpener
+      ? ["Avoid starting prompts with ChatGPT boilerplate like 'Act as' or 'Certainly'."]
+      : ["Strong, organic prompt phrasing."],
     analyzedAt: new Date().toISOString()
   };
 }
@@ -242,7 +339,23 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
   if (!geminiClient) return heuristicResult;
 
   try {
-    const systemPrompt = `You are an AI referee for PROMPT WARS 2026. Respond ONLY in valid JSON:
+    const systemPrompt = `You are an expert AI Forensics & Prompt Engineering Referee for PROMPT WARS 2026.
+Your mandate is to strictly evaluate whether a contestant's prompt is an authentic, organically human-crafted prompt or if it was generated by ChatGPT / Claude / LLMs or copied from formulaic AI prompt templates.
+
+ANALYSIS CRITERIA:
+1. ChatGPT / LLM Openers & Prefixes: Look for telltale conversational intros ("Certainly!", "Here is a...", "As an AI...", "Sure, here's...", "Below is a...").
+2. Meta-Prompt & Scaffolding Boilerplate: Look for LLM roleplay/scaffold templates ("Act as a...", "You are an expert...", "Create a comprehensive guide...", "Your task is to...").
+3. LLM Buzzwords & Clichés: Look for words heavily favored by ChatGPT ("delve", "tapestry", "testament", "beacon", "fostering", "harnessing", "unwavering", "seamlessly", "vital role", "crucial aspect").
+4. Image AI Clichés: Look for artstation fluff ("masterpiece", "8k", "photorealistic", "trending on artstation", "unreal engine").
+5. Structure: Overly neat markdown bullet points, bold headers, and uniform academic structure generated by ChatGPT.
+
+AUTHENTICITY SCORING SCALE (0-100):
+- 85-100: Purely human-written, natural phrasing, original creative thought without AI templates.
+- 60-84: Mostly human with slight standard AI syntax.
+- 35-59: Hybrid prompt, heavily relies on ChatGPT templates or prompt generators.
+- 0-34: Direct ChatGPT paste, full LLM boilerplate, or formulaic cliché stuffing.
+
+Respond ONLY in valid JSON strictly conforming to this schema:
 {
   "authenticityScore": number (0-100),
   "isAiGenerated": boolean,
@@ -254,6 +367,7 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
   "reasoning": string,
   "improvementTips": string[]
 }`;
+
     const response = await geminiClient.models.generateContent({
       model: 'gemini-2.0-flash',
       contents: `Analyze contestant prompt:\n"""\n${promptText}\n"""`,
@@ -261,11 +375,18 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
     });
 
     const parsed = JSON.parse(response.text?.trim() || '{}');
+    const authenticityScore = Math.min(98, Math.max(10, Math.round(parsed.authenticityScore ?? heuristicResult.authenticityScore)));
+    const isAiGenerated = authenticityScore < 60;
+    
+    let verdict: 'Human Crafted (Self-Made)' | 'Likely AI Generated / Boilerplate' | 'Hybrid / AI-Assisted' = 'Human Crafted (Self-Made)';
+    if (authenticityScore < 45) verdict = 'Likely AI Generated / Boilerplate';
+    else if (authenticityScore < 75) verdict = 'Hybrid / AI-Assisted';
+
     return {
-      authenticityScore: Math.round(parsed.authenticityScore ?? heuristicResult.authenticityScore),
-      isAiGenerated: Boolean(parsed.isAiGenerated ?? heuristicResult.isAiGenerated),
-      aiProbability: Number(parsed.aiProbability ?? heuristicResult.aiProbability),
-      verdict: parsed.verdict || heuristicResult.verdict,
+      authenticityScore,
+      isAiGenerated,
+      aiProbability: parseFloat(((100 - authenticityScore) / 100).toFixed(2)),
+      verdict,
       confidence: Math.round(parsed.confidence ?? 92),
       metrics: heuristicResult.metrics,
       detectedMarkers: parsed.detectedMarkers || heuristicResult.detectedMarkers,
@@ -281,7 +402,7 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
 }
 
 async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<SubmissionScores> {
-  const authenticityBonus = Math.min(10, Math.round(sub.authenticity.authenticityScore * 0.1));
+  const authenticityBonus = calculateAuthenticityBonus(sub.authenticity.authenticityScore);
 
   // Heuristic task-alignment check as fallback
   const wordCount = sub.promptText.trim().split(/\s+/).length;
@@ -362,7 +483,7 @@ Score prompt-to-task satisfaction under outputRelevance. Return JSON only.`;
     const cr = Math.min(25, Math.max(0, Math.round(parsed.creativity ?? fallbackScores.creativity)));
     const te = Math.min(25, Math.max(0, Math.round(parsed.technicalExecution ?? fallbackScores.technicalExecution)));
     const ab = Math.min(10, Math.max(0, Math.round(parsed.authenticityBonus ?? authenticityBonus)));
-    const tot = Math.min(100, Math.max(0, Math.round(parsed.totalScore ?? (pq + oRel + cr + te))));
+    const tot = Math.min(100, Math.max(0, Math.round(parsed.totalScore ?? (pq + oRel + cr + te + ab))));
 
     return {
       promptQuality: pq,
@@ -1154,7 +1275,8 @@ app.post('/api/submissions', requireParticipant, async (req: AuthenticatedReques
 
       // Update participant submissions count & authenticity bonus in Supabase
       const newSubCount = participant.submissionsCount + 1;
-      const newBonusTotal = participant.authenticityBonusTotal + Math.round(authenticity.authenticityScore * 0.1);
+      const bonusEarned = calculateAuthenticityBonus(authenticity.authenticityScore);
+      const newBonusTotal = participant.authenticityBonusTotal + bonusEarned;
       await supabase.from('participants').update({
         submissions_count: newSubCount,
         authenticity_bonus_total: newBonusTotal,
@@ -1163,7 +1285,7 @@ app.post('/api/submissions', requireParticipant, async (req: AuthenticatedReques
     } else {
       memorySubmissions.unshift(newSubmission);
       participant.submissionsCount += 1;
-      participant.authenticityBonusTotal += Math.round(authenticity.authenticityScore * 0.1);
+      participant.authenticityBonusTotal += calculateAuthenticityBonus(authenticity.authenticityScore);
     }
 
     res.status(201).json({
@@ -1193,6 +1315,20 @@ async function saveAndApplySubmissionScores(sub: Submission, scores: SubmissionS
       if (sub.roundId === 2) participant.round2Score = scores.totalScore;
       if (sub.roundId === 3) participant.round3Score = scores.totalScore;
 
+      // Recalculate participant authenticity bonus total from all evaluated submissions
+      const { data: allSubs } = await supabase.from('submissions').select('scores, authenticity').eq('participant_id', participant.id);
+      let totalBonus = 0;
+      if (allSubs) {
+        for (const s of allSubs) {
+          if (s.scores && typeof s.scores.authenticityBonus === 'number') {
+            totalBonus += s.scores.authenticityBonus;
+          } else if (s.authenticity && typeof s.authenticity.authenticityScore === 'number') {
+            totalBonus += calculateAuthenticityBonus(s.authenticity.authenticityScore);
+          }
+        }
+      }
+      participant.authenticityBonusTotal = totalBonus;
+
       participant.totalScore = participant.round1Score + participant.round2Score + participant.round3Score;
       if (participant.round3Score > 0) participant.status = 'champion';
       else if (participant.round2Score > 0) participant.status = 'qualified_r3';
@@ -1202,6 +1338,7 @@ async function saveAndApplySubmissionScores(sub: Submission, scores: SubmissionS
         round1_score: participant.round1Score,
         round2_score: participant.round2Score,
         round3_score: participant.round3Score,
+        authenticity_bonus_total: participant.authenticityBonusTotal,
         total_score: participant.totalScore,
         status: participant.status,
         updated_at: new Date().toISOString()
@@ -1213,6 +1350,17 @@ async function saveAndApplySubmissionScores(sub: Submission, scores: SubmissionS
       if (sub.roundId === 1) participant.round1Score = scores.totalScore;
       if (sub.roundId === 2) participant.round2Score = scores.totalScore;
       if (sub.roundId === 3) participant.round3Score = scores.totalScore;
+
+      const userSubs = memorySubmissions.filter(s => s.participantId === participant.id);
+      let totalBonus = 0;
+      for (const s of userSubs) {
+        if (s.scores && typeof s.scores.authenticityBonus === 'number') {
+          totalBonus += s.scores.authenticityBonus;
+        } else if (s.authenticity && typeof s.authenticity.authenticityScore === 'number') {
+          totalBonus += calculateAuthenticityBonus(s.authenticity.authenticityScore);
+        }
+      }
+      participant.authenticityBonusTotal = totalBonus;
       participant.totalScore = participant.round1Score + participant.round2Score + participant.round3Score;
       memoryParticipants.sort((a, b) => b.totalScore - a.totalScore);
       memoryParticipants.forEach((p, idx) => { p.rank = idx + 1; });
@@ -1244,11 +1392,14 @@ app.patch('/api/submissions/:id/grade', requireAdmin, async (req: Request, res: 
       return;
     }
 
-    const authenticityBonus = Math.min(10, Math.round(sub.authenticity.authenticityScore * 0.1));
-    const totalScore = Math.min(100, (Number(promptQuality) || 0) +
+    const authenticityBonus = calculateAuthenticityBonus(sub.authenticity.authenticityScore);
+    const totalScore = Math.min(100,
+      (Number(promptQuality) || 0) +
       (Number(outputRelevance) || 0) +
       (Number(creativity) || 0) +
-      (Number(technicalExecution) || 0));
+      (Number(technicalExecution) || 0) +
+      authenticityBonus
+    );
 
     const scores: SubmissionScores = {
       promptQuality: Number(promptQuality) || 0,
