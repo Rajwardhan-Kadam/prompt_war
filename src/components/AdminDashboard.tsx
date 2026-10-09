@@ -57,11 +57,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [judgeName, setJudgeName] = useState('Dr. S. K. Sen (Lead Evaluator)');
   const [isGrading, setIsGrading] = useState(false);
   const [isAutoGradingRound1, setIsAutoGradingRound1] = useState(false);
+  const [isAutoGradingRound2, setIsAutoGradingRound2] = useState(false);
   const [isAiGradingSingle, setIsAiGradingSingle] = useState(false);
 
   // Batch Gemini AI Autograding for Round 1
   const handleAutoGradeRound1 = async () => {
-    if (!window.confirm('Run Gemini AI Multimodal evaluation for all Round 1 submissions and calculate official leaderboard scores?')) return;
+    if (!window.confirm('Run Gemini AI evaluation for all Round 1 submissions and calculate official Round 1 leaderboard scores?')) return;
     setIsAutoGradingRound1(true);
     sound.playBeep(600, 0.05);
 
@@ -75,6 +76,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       alert(err?.message || 'Failed to autograde Round 1 submissions.');
     } finally {
       setIsAutoGradingRound1(false);
+    }
+  };
+
+  // Batch Gemini AI Autograding for Round 2
+  const handleAutoGradeRound2 = async () => {
+    if (!window.confirm('Run Gemini AI evaluation for all Round 2 Scenario Sprint submissions and calculate official Round 2 leaderboard scores?')) return;
+    setIsAutoGradingRound2(true);
+    sound.playBeep(600, 0.05);
+
+    try {
+      const res = await api.autoGradeRound2();
+      sound.playSuccessChime();
+      alert(res.message || `Successfully evaluated ${res.gradedCount} Round 2 submissions with Gemini AI!`);
+      onRefreshData();
+    } catch (err: any) {
+      sound.playWarningPing();
+      alert(err?.message || 'Failed to autograde Round 2 submissions.');
+    } finally {
+      setIsAutoGradingRound2(false);
     }
   };
 
@@ -302,10 +322,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             onClick={handleAutoGradeRound1}
             disabled={isAutoGradingRound1}
-            className="neo-btn bg-[#FFD600] hover:bg-[#00C853] text-black px-4 py-2 text-xs flex items-center space-x-2 cursor-pointer shadow-[3px_3px_0_#000]"
+            className="neo-btn bg-[#FFD600] hover:bg-[#00C853] text-black px-3.5 py-2 text-xs flex items-center space-x-1.5 cursor-pointer shadow-[3px_3px_0_#000]"
           >
             <Sparkles className={`w-4 h-4 text-black ${isAutoGradingRound1 ? 'animate-spin' : ''}`} />
-            <span>{isAutoGradingRound1 ? 'GEMINI AI EVALUATING...' : 'AUTOGRADE R1 WITH GEMINI AI'}</span>
+            <span>{isAutoGradingRound1 ? 'EVALUATING R1...' : 'AUTOGRADE R1'}</span>
+          </button>
+
+          <button
+            onClick={handleAutoGradeRound2}
+            disabled={isAutoGradingRound2}
+            className="neo-btn bg-[#00E5FF] hover:bg-[#00C853] text-black px-3.5 py-2 text-xs flex items-center space-x-1.5 cursor-pointer shadow-[3px_3px_0_#000]"
+          >
+            <Sparkles className={`w-4 h-4 text-black ${isAutoGradingRound2 ? 'animate-spin' : ''}`} />
+            <span>{isAutoGradingRound2 ? 'EVALUATING R2...' : 'AUTOGRADE R2'}</span>
           </button>
 
           <button

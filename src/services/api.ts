@@ -209,6 +209,28 @@ export const api = {
     return data;
   },
 
+  async autoGradeRound2(): Promise<{ success: boolean; gradedCount: number; message: string }> {
+    const res = await fetch('/api/admin/auto-grade-round2', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Batch autograding failed for Round 2');
+    return data;
+  },
+
+  async autoGradeRound(roundId: 1 | 2 | 3): Promise<{ success: boolean; gradedCount: number; message: string }> {
+    const res = await fetch('/api/admin/auto-grade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roundId }),
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Batch autograding failed');
+    return data;
+  },
+
   // ------------------- LEADERBOARD & SYSTEM -------------------
   async getLeaderboard(round?: 1 | 2 | 3 | string): Promise<Participant[]> {
     const targetRound = round || 1;

@@ -1302,52 +1302,83 @@ app.post('/api/submissions/:id/ai-grade', requireAdmin, async (req: Request, res
   }
 });
 
+// Generic Batch Autograde Handler for any Round (1, 2, or 3)
+async function autoGradeRoundBatch(roundId: 1 | 2 | 3) {
+  let pendingSubs: Submission[] = [];
+
+  if (supabase) {
+    const { data, error } = await supabase.from('submissions').select('*').eq('round_id', roundId);
+    if (!error && data) {
+      pendingSubs = data.map(mapSubmissionFromDb);
+    }
+  } else {
+    pendingSubs = memorySubmissions.filter(s => s.roundId === roundId);
+  }
+
+  if (pendingSubs.length === 0) {
+    return {
+      success: true,
+      gradedCount: 0,
+      message: `No Round 0${roundId} submissions found to grade.`
+    };
+  }
+
+  // Process all pending submissions concurrently
+  const gradedResults = await Promise.all(
+    pendingSubs.map(async (sub) => {
+      const aiScores = await evaluateSubmissionWithGeminiMultimodal(sub);
+      await saveAndApplySubmissionScores(sub, aiScores);
+      return sub;
+    })
+  );
+
+  // Automatically publish the autograded round on leaderboard
+  if (roundId === 1) eventState.publishedRounds.round1 = true;
+  if (roundId === 2) eventState.publishedRounds.round2 = true;
+  if (roundId === 3) eventState.publishedRounds.round3 = true;
+
+  if (supabase) {
+    await supabase.from('event_state').update({
+      published_rounds: eventState.publishedRounds,
+      updated_at: new Date().toISOString()
+    }).eq('id', 1);
+  }
+
+  return {
+    success: true,
+    gradedCount: gradedResults.length,
+    message: `Successfully evaluated ${gradedResults.length} Round 0${roundId} submissions with Gemini AI and updated Round 0${roundId} leaderboard!`
+  };
+}
+
 // POST /api/admin/auto-grade-round1 (Require Admin - Batch Autograde Round 1 & Update Leaderboard)
 app.post('/api/admin/auto-grade-round1', requireAdmin, async (_req: Request, res: Response) => {
   try {
-    let pendingSubs: Submission[] = [];
+    const result = await autoGradeRoundBatch(1);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Auto-grade Round 1 error:', err);
+    res.status(500).json({ error: err?.message || 'Batch autograding failed for Round 1' });
+  }
+});
 
-    if (supabase) {
-      const { data, error } = await supabase.from('submissions').select('*').eq('round_id', 1);
-      if (!error && data) {
-        pendingSubs = data.map(mapSubmissionFromDb);
-      }
-    } else {
-      pendingSubs = memorySubmissions.filter(s => s.roundId === 1);
-    }
+// POST /api/admin/auto-grade-round2 (Require Admin - Batch Autograde Round 2 & Update Leaderboard)
+app.post('/api/admin/auto-grade-round2', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const result = await autoGradeRoundBatch(2);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Auto-grade Round 2 error:', err);
+    res.status(500).json({ error: err?.message || 'Batch autograding failed for Round 2' });
+  }
+});
 
-    if (pendingSubs.length === 0) {
-      res.json({
-        success: true,
-        gradedCount: 0,
-        message: 'No Round 1 submissions found to grade.'
-      });
-      return;
-    }
-
-    // Process all pending submissions concurrently
-    const gradedResults = await Promise.all(
-      pendingSubs.map(async (sub) => {
-        const aiScores = await evaluateSubmissionWithGeminiMultimodal(sub);
-        await saveAndApplySubmissionScores(sub, aiScores);
-        return sub;
-      })
-    );
-
-    // Automatically publish Round 1 on leaderboard
-    eventState.publishedRounds.round1 = true;
-    if (supabase) {
-      await supabase.from('event_state').update({
-        published_rounds: eventState.publishedRounds,
-        updated_at: new Date().toISOString()
-      }).eq('id', 1);
-    }
-
-    res.json({
-      success: true,
-      gradedCount: gradedResults.length,
-      message: `Successfully evaluated ${gradedResults.length} Round 1 submissions with Gemini AI and updated leaderboard!`
-    });
+// POST /api/admin/auto-grade (Require Admin - Generic Batch Autograde)
+app.post('/api/admin/auto-grade', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const roundId = (Number(req.body?.roundId || req.query?.round) || 1) as 1 | 2 | 3;
+    const result = await autoGradeRoundBatch(roundId);
+    res.json(result);
   } catch (err: any) {
     console.error('Auto-grade error:', err);
     res.status(500).json({ error: err?.message || 'Batch autograding failed' });
