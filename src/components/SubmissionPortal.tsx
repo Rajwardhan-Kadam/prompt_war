@@ -69,9 +69,7 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
   const [repoUrl, setRepoUrl] = useState('');
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(null);
 
-  // ML Pre-check state
-  const [isPreChecking, setIsPreChecking] = useState(false);
-  const [preCheckResult, setPreCheckResult] = useState<PromptAuthenticityResult | null>(null);
+
 
   // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,29 +121,7 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
     sound.playBeep(800, 0.05);
   };
 
-  const runPreFlightCheck = async () => {
-    if (!promptText.trim()) {
-      setErrorMessage('Please enter your prompt text first.');
-      return;
-    }
-    setErrorMessage('');
-    setIsPreChecking(true);
-    sound.playBeep(600, 0.06);
 
-    try {
-      const result = await api.checkPrompt(promptText);
-      setPreCheckResult(result);
-      if (result.isAiGenerated) {
-        sound.playWarningPing();
-      } else {
-        sound.playSuccessChime();
-      }
-    } catch {
-      setErrorMessage('Failed to evaluate prompt authenticity.');
-    } finally {
-      setIsPreChecking(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,7 +241,6 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                 key={r}
                 onClick={() => {
                   setActiveRound(r);
-                  setPreCheckResult(null);
                   setErrorMessage('');
                   sound.playBeep(650 + r * 50, 0.04);
                   if (window.location.hash !== `#round-${r}`) {
@@ -395,14 +370,7 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                 </div>
               </div>
 
-              {/* ML Analysis Summary */}
-              <div className="bg-yellow-50 border-3 border-black p-4 font-mono text-xs">
-                <div className="flex items-center justify-between font-black mb-1">
-                  <span>ML FORENSIC SCORE:</span>
-                  <span className="bg-black text-white px-2 py-0.5">{existingSubForRound.authenticity.authenticityScore}% HUMAN</span>
-                </div>
-                <p className="font-sans text-xs font-bold">{existingSubForRound.authenticity.reasoning}</p>
-              </div>
+
 
               {/* Evaluated Score if Graded */}
               {existingSubForRound.scores && (
@@ -684,7 +652,6 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                   value={promptText}
                   onChange={(e) => {
                     setPromptText(e.target.value);
-                    setPreCheckResult(null);
                   }}
                   placeholder={
                     activeRound === 1
@@ -696,52 +663,6 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                   className="w-full neo-input p-3 text-xs font-mono text-black leading-relaxed"
                 />
 
-                {/* Pre-Flight Button */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2.5 pt-2 border-t-2 border-black">
-                  <p className="text-[11px] font-mono font-bold text-neutral-600">
-                    SCAN FOR CLICHÉS BEFORE SUBMITTING (+10 BONUS)
-                  </p>
-                  <button
-                    type="button"
-                    onClick={runPreFlightCheck}
-                    disabled={isPreChecking || !promptText.trim()}
-                    className="neo-btn bg-black text-white hover:bg-[#FFD600] hover:text-black px-3 py-1.5 text-xs font-mono font-black uppercase flex items-center justify-center space-x-1.5 shrink-0"
-                  >
-                    <Cpu className={`w-3.5 h-3.5 ${isPreChecking ? 'animate-spin' : ''}`} />
-                    <span>{isPreChecking ? 'SCANNING NLP...' : 'RUN ML PRE-CHECK'}</span>
-                  </button>
-                </div>
-
-                {preCheckResult && (
-                  <div className={`mt-3 p-4 border-3 border-black shadow-[4px_4px_0_#000] font-mono text-xs ${
-                    preCheckResult.isAiGenerated
-                      ? 'bg-[#FF4081] text-white'
-                      : 'bg-[#00C853] text-black'
-                  }`}>
-                    <div className="flex items-center justify-between font-black uppercase mb-1">
-                      <span className="flex items-center space-x-1.5">
-                        {preCheckResult.isAiGenerated ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                        <span>VERDICT: {preCheckResult.verdict}</span>
-                      </span>
-                      <span>{preCheckResult.authenticityScore}% ORIGINAL</span>
-                    </div>
-
-                    <p className="text-xs font-bold leading-relaxed mb-2 font-sans">
-                      {preCheckResult.reasoning}
-                    </p>
-
-                    {preCheckResult.detectedMarkers.length > 0 && (
-                      <div className="text-[11px] font-bold mt-1 pt-1 border-t-2 border-black">
-                        <span>FLAGGED TOKENS: </span>
-                        {preCheckResult.detectedMarkers.map((m, idx) => (
-                          <span key={idx} className="bg-black text-white px-1.5 py-0.2 mr-1 border border-black">
-                            {m}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Round 1 Deliverable: Mobile Screenshot Upload */}
@@ -929,19 +850,7 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
               </div>
             </div>
 
-            <div className={`p-4 border-3 border-black font-mono text-xs ${
-              submittedReceipt.authenticity.isAiGenerated
-                ? 'bg-[#FF4081] text-white'
-                : 'bg-[#FFD600] text-black'
-            }`}>
-              <div className="flex items-center justify-between font-black uppercase mb-1">
-                <span>AUTHENTICITY VERDICT:</span>
-                <span>{submittedReceipt.authenticity.authenticityScore}% HUMAN</span>
-              </div>
-              <p className="font-sans text-xs font-bold leading-relaxed">
-                {submittedReceipt.authenticity.reasoning}
-              </p>
-            </div>
+
 
             <div className="space-y-2 text-xs font-mono bg-[#F4F4F0] p-3.5 border-3 border-black font-bold">
               <div className="flex justify-between">

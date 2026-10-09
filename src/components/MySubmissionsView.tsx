@@ -129,19 +129,6 @@ export const MySubmissionsView: React.FC<MySubmissionsViewProps> = ({ currentUse
                     </div>
                   </div>
 
-                  {/* ML Authenticity Report Card */}
-                  <div className="bg-yellow-50 border-3 border-black p-4 font-mono">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-black text-xs uppercase tracking-wider flex items-center space-x-1.5">
-                        <ShieldCheck className="w-4 h-4 text-black" />
-                        <span>ML FORENSIC AUTHENTICITY ANALYSIS</span>
-                      </span>
-                      <span className="font-black text-sm px-2 py-0.5 bg-black text-white">
-                        {sub.authenticity.authenticityScore} / 100
-                      </span>
-                    </div>
-                    <p className="text-xs font-bold text-gray-800">{sub.authenticity.reasoning}</p>
-                  </div>
 
                   {/* Evaluation Scores Section (If Graded) */}
                   {isEvaluated && sub.scores && (
