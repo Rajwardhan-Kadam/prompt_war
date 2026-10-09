@@ -283,13 +283,18 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
 async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<SubmissionScores> {
   const authenticityBonus = Math.min(10, Math.round(sub.authenticity.authenticityScore * 0.1));
 
-  // Heuristic default scores as fallback
+  // Heuristic task-alignment check as fallback
   const wordCount = sub.promptText.trim().split(/\s+/).length;
-  const promptQuality = Math.min(25, Math.max(14, Math.round(15 + (wordCount / 10))));
-  const outputRelevance = Math.min(25, Math.max(16, Math.round(18 + (sub.assignedThemeOrChit ? 4 : 0))));
-  const creativity = Math.min(25, Math.max(15, Math.round(16 + (sub.authenticity.authenticityScore * 0.08))));
-  const technicalExecution = 21;
-  const totalScore = promptQuality + outputRelevance + creativity + technicalExecution + authenticityBonus;
+  const cleanPrompt = sub.promptText.toLowerCase();
+  const taskWords = (sub.assignedThemeOrChit || '').toLowerCase().split(/\W+/).filter(w => w.length > 3);
+  const matchedTaskWords = taskWords.filter(w => cleanPrompt.includes(w));
+  const taskMatchRatio = taskWords.length > 0 ? (matchedTaskWords.length / taskWords.length) : 0.5;
+
+  const promptQuality = Math.min(25, Math.max(12, Math.round(14 + (wordCount / 10))));
+  const outputRelevance = Math.min(25, Math.max(10, Math.round(12 + (taskMatchRatio * 13))));
+  const creativity = Math.min(25, Math.max(12, Math.round(15 + (sub.authenticity.authenticityScore * 0.08))));
+  const technicalExecution = Math.min(25, Math.max(12, Math.round(16 + (cleanPrompt.includes('--') || cleanPrompt.includes('rendering') ? 4 : 2))));
+  const totalScore = Math.min(100, promptQuality + outputRelevance + creativity + technicalExecution + authenticityBonus);
 
   const fallbackScores: SubmissionScores = {
     promptQuality,
@@ -298,10 +303,10 @@ async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<
     technicalExecution,
     authenticityBonus,
     totalScore,
-    gradedBy: geminiClient ? 'Gemini 2.0 Flash AI Evaluator' : 'Heuristic Auto-Referee',
-    feedback: sub.authenticity.isAiGenerated
-      ? 'Evaluated entry. Prompt contains repetitive AI formulaic keywords. Originality bonus partial.'
-      : `Evaluated entry. Strong prompt structure aligning well with task "${sub.assignedThemeOrChit.slice(0, 30)}...".`,
+    gradedBy: geminiClient ? 'Gemini 2.0 Flash AI Evaluator' : 'Heuristic Task Evaluator',
+    feedback: taskMatchRatio >= 0.5
+      ? `Evaluated entry. Prompt demonstrates good alignment with assigned task brief "${(sub.assignedThemeOrChit || '').slice(0, 35)}...".`
+      : `Evaluated entry. Prompt partially addresses assigned task brief "${(sub.assignedThemeOrChit || '').slice(0, 35)}...". Could incorporate more task constraints.`,
     gradedAt: new Date().toISOString()
   };
 
@@ -310,10 +315,17 @@ async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<
   }
 
   try {
-    const systemPrompt = `You are the Official AI Lead Evaluator for PROMPT WARS 2026.
-Grade the contestant's submission by evaluating how accurately and creatively their prompt addresses their assigned tournament task brief.
+    const systemPrompt = `You are the Lead Judge & Evaluator for PROMPT WARS 2026.
+Your PRIMARY RESPONSIBILITY is to verify whether the contestant's submitted prompt satisfies the randomly assigned task brief given to them in Round 0${sub.roundId}.
 
-Rate the submission strictly in JSON format:
+CRITICAL EVALUATION INSTRUCTIONS:
+1. Task Satisfaction Check: First, evaluate if the contestant's prompt explicitly fulfills, obeys, and satisfies all requirements of their randomly assigned task brief ("${sub.assignedThemeOrChit}").
+2. Output Relevance (0-25 PTS): Rate how accurately and completely the prompt satisfies the assigned task brief. If the prompt fails to satisfy the assigned task or is off-topic, assign a low outputRelevance score (0-8 PTS).
+3. Prompt Quality (0-25 PTS): Evaluate prompt structure, specificity, camera/style modifiers, and engineering depth.
+4. Creativity (0-25 PTS): Evaluate creative concept and visual/textual innovation aligned with the task.
+5. Technical Execution (0-25 PTS): Evaluate technical parameters (aspect ratio --ar, lighting, style terms, negative prompts).
+
+Output JSON format strictly:
 {
   "promptQuality": number (0-25),
   "outputRelevance": number (0-25),
@@ -321,19 +333,19 @@ Rate the submission strictly in JSON format:
   "technicalExecution": number (0-25),
   "authenticityBonus": number (0-10),
   "totalScore": number (0-100),
-  "feedback": string (2-3 sentences of concise, constructive critique on prompt engineering quality and alignment with the task)
+  "feedback": string (2-3 concise sentences assessing specifically if the prompt satisfies the assigned task and explaining key strengths/areas for improvement)
 }`;
 
     const promptText = `
-EVALUATION REQUEST:
-- Contestant Name: ${sub.participantName} (${sub.registrationId})
-- Round: 0${sub.roundId}
-- Assigned Task Brief: "${sub.assignedThemeOrChit}"
-- Contestant's Exact Prompt: "${sub.promptText}"
-- AI Tool Used: "${sub.aiToolUsed}"
-- Output Summary: "${sub.generatedOutputSummary || 'None'}"
+EVALUATION REQUEST FOR ROUND 0${sub.roundId}:
+- Contestant: ${sub.participantName} (${sub.registrationId})
+- RANDOMLY ASSIGNED TASK BRIEF: "${sub.assignedThemeOrChit}"
+- CONTESTANT'S SUBMITTED PROMPT: "${sub.promptText}"
+- AI Tool Specified: "${sub.aiToolUsed}"
 
-Evaluate prompt quality, prompt-to-task alignment, creativity, and technical execution. Do not analyze image files. Return JSON only.`;
+INSTRUCTIONS:
+Verify if the contestant's prompt directly satisfies the assigned task brief "${sub.assignedThemeOrChit}".
+Score prompt-to-task satisfaction under outputRelevance. Return JSON only.`;
 
     const response = await geminiClient.models.generateContent({
       model: 'gemini-2.0-flash',
