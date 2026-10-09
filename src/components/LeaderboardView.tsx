@@ -533,7 +533,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
           )}
 
           {/* Podium Top 3 Cards for Selected Tab */}
-          {sorted.length >= 3 && (
+          {sorted.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 pt-2">
               
               {/* 1st Place - Gold Hero Card */}
@@ -759,6 +759,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 </div>
               )}
 
+            </div>
+          )}
+
+          {sorted.length === 0 && (
+            <div className="bg-white border-4 border-black p-8 sm:p-12 text-center rounded-2xl shadow-[8px_8px_0_#000] font-mono">
+              <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-3 stroke-2" />
+              <h3 className="font-black text-lg sm:text-xl uppercase text-black mb-1">
+                NO REGISTERED PARTICIPANTS YET
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600 font-bold max-w-md mx-auto">
+                Official standings will update on the leaderboard as soon as contestants register and submit solutions!
+              </p>
             </div>
           )}
 
