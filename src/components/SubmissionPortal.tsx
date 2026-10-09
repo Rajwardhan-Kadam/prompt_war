@@ -596,44 +596,61 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                 )}
               </div>
 
-              {/* Permitted AI Tool Select */}
+              {/* Permitted AI Tool Select / Free Text Input */}
               <div>
                 <label className="block text-xs font-mono font-black text-black mb-1.5 uppercase">
-                  PERMITTED AI TOOL USED:
+                  {activeRound === 1 ? 'AI TOOL USED TO GENERATE IMAGE:' : 'PERMITTED AI TOOL USED:'}
                 </label>
-                <select
-                  value={aiToolUsed}
-                  onChange={(e) => setAiToolUsed(e.target.value)}
-                  className="w-full neo-input px-3 py-2 text-xs font-mono font-bold text-black cursor-pointer"
-                >
-                  {activeRound === 1 ? (
-                    <>
-                      <option value="Midjourney v6.1">Midjourney v6.1 (Permitted)</option>
-                      <option value="DALL-E 3 (OpenAI)">DALL-E 3 (OpenAI)</option>
-                      <option value="Ideogram 2.0">Ideogram 2.0</option>
-                      <option value="Google Imagen 3">Google Imagen 3</option>
-                      <option value="Stable Diffusion XL">Stable Diffusion XL</option>
-                      <option value="Recraft.ai">Recraft.ai</option>
-                    </>
-                  ) : activeRound === 2 ? (
-                    <>
-                      <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet (Permitted)</option>
-                      <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
-                      <option value="Google Gemini 2.5 Flash">Google Gemini 2.5 Flash</option>
-                      <option value="DeepSeek R1">DeepSeek R1</option>
-                      <option value="Perplexity AI">Perplexity AI</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Cursor & Anthropic API">Cursor & Anthropic API (Permitted)</option>
-                      <option value="v0.dev by Vercel">v0.dev by Vercel</option>
-                      <option value="Bolt.new">Bolt.new</option>
-                      <option value="Lovable.dev">Lovable.dev</option>
-                      <option value="GitHub Copilot Workspace">GitHub Copilot Workspace</option>
-                      <option value="Claude Artifacts">Claude Artifacts</option>
-                    </>
-                  )}
-                </select>
+                {activeRound === 1 ? (
+                  <>
+                    <input
+                      type="text"
+                      required
+                      value={aiToolUsed}
+                      onChange={(e) => setAiToolUsed(e.target.value)}
+                      placeholder="Type any AI tool used (e.g. Midjourney v6, DALL-E 3, Leonardo AI, Flux 1.1, Stable Diffusion...)"
+                      className="w-full neo-input px-3 py-2 text-xs font-mono font-bold text-black"
+                      list="round1-ai-tools"
+                    />
+                    <datalist id="round1-ai-tools">
+                      <option value="Midjourney v6.1" />
+                      <option value="DALL-E 3 (OpenAI)" />
+                      <option value="Ideogram 2.0" />
+                      <option value="Google Imagen 3" />
+                      <option value="Stable Diffusion XL" />
+                      <option value="Recraft.ai" />
+                      <option value="Leonardo.Ai" />
+                      <option value="Flux 1.1 Pro" />
+                      <option value="Bing Image Creator" />
+                      <option value="Adobe Firefly" />
+                    </datalist>
+                  </>
+                ) : (
+                  <select
+                    value={aiToolUsed}
+                    onChange={(e) => setAiToolUsed(e.target.value)}
+                    className="w-full neo-input px-3 py-2 text-xs font-mono font-bold text-black cursor-pointer"
+                  >
+                    {activeRound === 2 ? (
+                      <>
+                        <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet (Permitted)</option>
+                        <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
+                        <option value="Google Gemini 2.5 Flash">Google Gemini 2.5 Flash</option>
+                        <option value="DeepSeek R1">DeepSeek R1</option>
+                        <option value="Perplexity AI">Perplexity AI</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Cursor & Anthropic API">Cursor & Anthropic API (Permitted)</option>
+                        <option value="v0.dev by Vercel">v0.dev by Vercel</option>
+                        <option value="Bolt.new">Bolt.new</option>
+                        <option value="Lovable.dev">Lovable.dev</option>
+                        <option value="GitHub Copilot Workspace">GitHub Copilot Workspace</option>
+                        <option value="Claude Artifacts">Claude Artifacts</option>
+                      </>
+                    )}
+                  </select>
+                )}
               </div>
 
               {/* Prompt Text Input */}

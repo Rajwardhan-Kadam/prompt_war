@@ -1010,10 +1010,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Criteria 1: Prompt Quality */}
+                {/* Criteria 1: Prompt Quality / Scenario Explanation */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-mono font-black text-black uppercase">
-                    <span>1. PROMPT ENGINEERING QUALITY</span>
+                    <span>
+                      {selectedSubmission.roundId === 2
+                        ? '1. PROMPT & SCENARIO EXPLANATION'
+                        : '1. PROMPT ENGINEERING QUALITY'}
+                    </span>
                     <span className="bg-[#F4F4F0] px-1.5 py-0.5 rounded border border-black">{promptQuality} / 25</span>
                   </div>
                   <input
@@ -1024,13 +1028,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setPromptQuality(Number(e.target.value))}
                     className="w-full accent-black cursor-pointer"
                   />
-                  <div className="text-[10px] font-mono text-black/60">Clarity, lexical precision, constraint syntax</div>
+                  <div className="text-[10px] font-mono text-black/60">
+                    {selectedSubmission.roundId === 2
+                      ? 'How clearly the scenario problem, crisis context, and instructions are explained'
+                      : 'Clarity, lexical precision, constraint syntax'}
+                  </div>
                 </div>
 
-                {/* Criteria 2: Output Relevance */}
+                {/* Criteria 2: Output Relevance / Scenario Incorporation */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-mono font-black text-black uppercase">
-                    <span>2. OUTPUT RELEVANCE TO TOPIC</span>
+                    <span>
+                      {selectedSubmission.roundId === 2
+                        ? '2. SCENARIO INCORPORATION & ALIGNMENT'
+                        : '2. OUTPUT RELEVANCE TO TOPIC'}
+                    </span>
                     <span className="bg-[#F4F4F0] px-1.5 py-0.5 rounded border border-black">{outputRelevance} / 25</span>
                   </div>
                   <input
@@ -1041,13 +1053,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setOutputRelevance(Number(e.target.value))}
                     className="w-full accent-black cursor-pointer"
                   />
-                  <div className="text-[10px] font-mono text-black/60">Faithfulness to assigned challenge constraints</div>
+                  <div className="text-[10px] font-mono text-black/60">
+                    {selectedSubmission.roundId === 2
+                      ? 'Does prompt explicitly mention and target assigned scenario chit?'
+                      : 'Faithfulness to assigned challenge constraints'}
+                  </div>
                 </div>
 
                 {/* Criteria 3: Creativity */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-mono font-black text-black uppercase">
-                    <span>3. CREATIVITY & ORIGINALITY</span>
+                    <span>
+                      {selectedSubmission.roundId === 2
+                        ? '3. CREATIVE CRISIS STRATEGY'
+                        : '3. CREATIVITY & ORIGINALITY'}
+                    </span>
                     <span className="bg-[#F4F4F0] px-1.5 py-0.5 rounded border border-black">{creativity} / 25</span>
                   </div>
                   <input
@@ -1058,13 +1078,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setCreativity(Number(e.target.value))}
                     className="w-full accent-black cursor-pointer"
                   />
-                  <div className="text-[10px] font-mono text-black/60">Unique angles, non-obvious synthesis</div>
+                  <div className="text-[10px] font-mono text-black/60">
+                    {selectedSubmission.roundId === 2
+                      ? 'Innovative triage mechanisms, failover workflows, root-cause isolation'
+                      : 'Unique angles, non-obvious synthesis'}
+                  </div>
                 </div>
 
                 {/* Criteria 4: Technical Execution */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-mono font-black text-black uppercase">
-                    <span>4. TECHNICAL FEASIBILITY / SPEED</span>
+                    <span>4. TECHNICAL EXECUTION / SYNTAX</span>
                     <span className="bg-[#F4F4F0] px-1.5 py-0.5 rounded border border-black">{technicalExecution} / 25</span>
                   </div>
                   <input
@@ -1075,7 +1099,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setTechnicalExecution(Number(e.target.value))}
                     className="w-full accent-black cursor-pointer"
                   />
-                  <div className="text-[10px] font-mono text-black/60">Speed of submission, prototype execution</div>
+                  <div className="text-[10px] font-mono text-black/60">Logic flow, variable placeholders, output guardrails</div>
                 </div>
 
                 {/* Authenticity Bonus Auto-Calc */}

@@ -186,12 +186,15 @@ const KNOWN_AI_CLICHES = [
   'delve into', 'tapestry of', 'testament to', 'beacon of', 'fostering a', 'harnessing the',
   'unwavering', 'key takeaways', 'crucial role', 'vital component', 'in conclusion',
   'in summary', 'seamlessly', 'leverage', 'ever-evolving', 'vital role', 'crucial aspect',
+  'in order to achieve', 'tailored to', 'key considerations', 'root cause analysis',
 
   // LLM Meta-Prompting & Scaffolding Patterns
   'act as a', 'act as an', 'you are an expert', 'you are a senior', 'your task is to',
   'step-by-step guide', 'provide a comprehensive', 'design a robust', 'create a detailed',
-  'write a comprehensive', 'please ensure that', 'in order to achieve', 'make sure to include',
-  'system prompt:', 'user prompt:', 'roleplay as',
+  'write a comprehensive', 'please ensure that', 'make sure to include',
+  'system prompt:', 'user prompt:', 'roleplay as', 'given the scenario',
+  'expected output:', 'guidelines:', 'best practices:', 'objective:', 'constraints:',
+  'role:', 'context:', 'task:', 'instructions:',
 
   // Image AI Generation Clichés
   'masterpiece', '8k', '4k', 'photorealistic', 'hyperrealistic', 'ultra-realistic',
@@ -238,24 +241,33 @@ function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
 
   // 3. Structural & Formatting AI Markers
   let structuralPenalty = 0;
-  // ChatGPT openers check
+  // ChatGPT openers & section header check
   const chatGptOpeners = [
     /^certainly/i, /^here (is|'s) (a|the)/i, /^sure,/i, /^as an ai/i,
-    /^act as (a|an)/i, /^you are (a|an)/i, /^in this (scenario|task)/i,
+    /^act as (a|an)/i, /^you are (a|an|the)/i, /^in this (scenario|task)/i,
     /^create a (comprehensive|detailed|robust)/i, /^design a (comprehensive|robust)/i,
-    /^write a (comprehensive|detailed)/i, /^i want you to act as/i
+    /^write a (comprehensive|detailed)/i, /^i want you to act as/i,
+    /^given the (following|scenario|problem)/i, /^objective:/i, /^role:/i, /^task:/i
   ];
   const matchedOpener = chatGptOpeners.some(rgx => rgx.test(clean));
   if (matchedOpener) {
     structuralPenalty += 40;
   }
 
-  // Markdown lists & structured headers check (typical of ChatGPT pastes)
+  // Markdown headers & structured template check (typical of ChatGPT pastes)
   const bulletCount = (clean.match(/^[\s]*[-*•]\s+/gm) || []).length;
   const numberedListCount = (clean.match(/^[\s]*\d+[\.\)]\s+/gm) || []).length;
   const boldHeaderCount = (clean.match(/\*\*[^*]+\*\*/g) || []).length;
-  if (bulletCount >= 3 || numberedListCount >= 3 || boldHeaderCount >= 3) {
-    structuralPenalty += 20;
+  const markdownSectionHeaders = (clean.match(/^#{1,4}\s+[A-Za-z0-9]/gm) || []).length;
+
+  if (bulletCount >= 3 || numberedListCount >= 3 || boldHeaderCount >= 3 || markdownSectionHeaders >= 2) {
+    structuralPenalty += 25;
+  }
+
+  // Check for explicit ChatGPT template label sections like **Role:**, **Context:**, **Task:**, **Output:**
+  const templateSectionMatches = (lower.match(/\b(role|context|task|instructions|constraints|objective|output format):\b/g) || []).length;
+  if (templateSectionMatches >= 2) {
+    structuralPenalty += 30;
   }
 
   // 4. Burstiness (Sentence Length Variance)
@@ -277,9 +289,9 @@ function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
   }
 
   // 5. Calculate Final Authenticity Score
-  const markerPenalty = Math.min(75, detectedMarkers.length * 20);
+  const markerPenalty = Math.min(75, detectedMarkers.length * 18);
   let baseScore = 95 - markerPenalty - structuralPenalty;
-  
+
   if (markerPenalty === 0 && structuralPenalty === 0) {
     baseScore += Math.round((vocabularyDiversity - 50) * 0.1);
   }
@@ -304,10 +316,10 @@ function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
     reasoning += ` Flagged ${detectedMarkers.length} AI marker phrase(s): ${detectedMarkers.slice(0, 3).join(', ')}.`;
   }
   if (structuralPenalty >= 20 && !matchedOpener) {
-    reasoning += ` Heavy LLM template formatting & uniform cadence detected.`;
+    reasoning += ` Heavy LLM template formatting & uniform scaffolding detected.`;
   }
   if (detectedMarkers.length === 0 && structuralPenalty === 0) {
-    reasoning = `Authenticity evaluated at ${authenticityScore}%. Prompt displays natural human composition & creative phrasing.`;
+    reasoning = `Authenticity evaluated at ${authenticityScore}%. Prompt displays natural human composition & organic phrasing.`;
   }
 
   return {
@@ -328,8 +340,8 @@ function analyzePromptHeuristically(text: string): PromptAuthenticityResult {
     improvementTips: detectedMarkers.length > 0
       ? [`Remove formulaic AI markers like "${detectedMarkers[0]}".`, "Use your own natural domain terms instead of template phrases."]
       : matchedOpener
-      ? ["Avoid starting prompts with ChatGPT boilerplate like 'Act as' or 'Certainly'."]
-      : ["Strong, organic prompt phrasing."],
+        ? ["Avoid starting prompts with ChatGPT boilerplate like 'Act as' or 'Certainly'."]
+        : ["Strong, organic prompt phrasing."],
     analyzedAt: new Date().toISOString()
   };
 }
@@ -342,16 +354,15 @@ async function evaluatePromptWithGemini(promptText: string): Promise<PromptAuthe
     const systemPrompt = `You are an expert AI Forensics & Prompt Engineering Referee for PROMPT WARS 2026.
 Your mandate is to strictly evaluate whether a contestant's prompt is an authentic, organically human-crafted prompt or if it was generated by ChatGPT / Claude / LLMs or copied from formulaic AI prompt templates.
 
-ANALYSIS CRITERIA:
-1. ChatGPT / LLM Openers & Prefixes: Look for telltale conversational intros ("Certainly!", "Here is a...", "As an AI...", "Sure, here's...", "Below is a...").
-2. Meta-Prompt & Scaffolding Boilerplate: Look for LLM roleplay/scaffold templates ("Act as a...", "You are an expert...", "Create a comprehensive guide...", "Your task is to...").
-3. LLM Buzzwords & Clichés: Look for words heavily favored by ChatGPT ("delve", "tapestry", "testament", "beacon", "fostering", "harnessing", "unwavering", "seamlessly", "vital role", "crucial aspect").
-4. Image AI Clichés: Look for artstation fluff ("masterpiece", "8k", "photorealistic", "trending on artstation", "unreal engine").
-5. Structure: Overly neat markdown bullet points, bold headers, and uniform academic structure generated by ChatGPT.
+CRITICAL PENALTY INSTRUCTIONS:
+1. ChatGPT / LLM Scaffolding: Prompts using roleplay/scaffold templates ("Act as a...", "You are an expert...", "Given the following scenario...", "Objective:", "Role:", "Constraints:") MUST BE PENALIZED HEAVILY.
+2. AI Clichés & Buzzwords: Words like "delve", "tapestry", "fostering", "harnessing", "unwavering", "seamlessly", "vital role", "crucial aspect" indicate LLM generation.
+3. Overly neat markdown headers (###), bolded role/task labels, or uniform bullet points generated by ChatGPT must receive low authenticity (<50%).
+4. Purely organic, hand-crafted prompt text written directly without template stuffing receives high authenticity (80-98%).
 
 AUTHENTICITY SCORING SCALE (0-100):
 - 85-100: Purely human-written, natural phrasing, original creative thought without AI templates.
-- 60-84: Mostly human with slight standard AI syntax.
+- 60-84: Mostly human with slight standard syntax.
 - 35-59: Hybrid prompt, heavily relies on ChatGPT templates or prompt generators.
 - 0-34: Direct ChatGPT paste, full LLM boilerplate, or formulaic cliché stuffing.
 
@@ -370,14 +381,22 @@ Respond ONLY in valid JSON strictly conforming to this schema:
 
     const response = await geminiClient.models.generateContent({
       model: 'gemini-2.0-flash',
-      contents: `Analyze contestant prompt:\n"""\n${promptText}\n"""`,
+      contents: `Analyze contestant prompt for AI generation:\n"""\n${promptText}\n"""`,
       config: { systemInstruction: systemPrompt, responseMimeType: 'application/json' }
     });
 
     const parsed = JSON.parse(response.text?.trim() || '{}');
-    const authenticityScore = Math.min(98, Math.max(10, Math.round(parsed.authenticityScore ?? heuristicResult.authenticityScore)));
+    let authenticityScore = Math.round(parsed.authenticityScore ?? heuristicResult.authenticityScore);
+
+    // Hard cap: If heuristic analysis flagged matched openers, AI markers, or heavy structural LLM scaffolding,
+    // Gemini MUST NOT override heuristic penalties with an artificially inflated score!
+    if (heuristicResult.detectedMarkers.length >= 2 || heuristicResult.authenticityScore < 60) {
+      authenticityScore = Math.min(authenticityScore, heuristicResult.authenticityScore + 10);
+    }
+
+    authenticityScore = Math.min(98, Math.max(10, authenticityScore));
     const isAiGenerated = authenticityScore < 60;
-    
+
     let verdict: 'Human Crafted (Self-Made)' | 'Likely AI Generated / Boilerplate' | 'Hybrid / AI-Assisted' = 'Human Crafted (Self-Made)';
     if (authenticityScore < 45) verdict = 'Likely AI Generated / Boilerplate';
     else if (authenticityScore < 75) verdict = 'Hybrid / AI-Assisted';
@@ -404,30 +423,61 @@ Respond ONLY in valid JSON strictly conforming to this schema:
 async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<SubmissionScores> {
   const authenticityBonus = calculateAuthenticityBonus(sub.authenticity.authenticityScore);
 
-  // Heuristic task-alignment check as fallback
+  // Heuristic task-alignment & scenario-mention check as fallback
   const wordCount = sub.promptText.trim().split(/\s+/).length;
   const cleanPrompt = sub.promptText.toLowerCase();
-  const taskWords = (sub.assignedThemeOrChit || '').toLowerCase().split(/\W+/).filter(w => w.length > 3);
-  const matchedTaskWords = taskWords.filter(w => cleanPrompt.includes(w));
-  const taskMatchRatio = taskWords.length > 0 ? (matchedTaskWords.length / taskWords.length) : 0.5;
+  const assignedScenario = sub.assignedThemeOrChit || '';
+  const scenarioWords = assignedScenario.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+  const matchedScenarioWords = scenarioWords.filter(w => cleanPrompt.includes(w));
+  const scenarioMatchRatio = scenarioWords.length > 0 ? (matchedScenarioWords.length / scenarioWords.length) : 0.5;
+  const hasScenarioMention = assignedScenario ? cleanPrompt.includes(assignedScenario.toLowerCase()) || scenarioMatchRatio >= 0.4 : true;
 
-  const promptQuality = Math.min(25, Math.max(12, Math.round(14 + (wordCount / 10))));
-  const outputRelevance = Math.min(25, Math.max(10, Math.round(12 + (taskMatchRatio * 13))));
-  const creativity = Math.min(25, Math.max(12, Math.round(15 + (sub.authenticity.authenticityScore * 0.08))));
-  const technicalExecution = Math.min(25, Math.max(12, Math.round(16 + (cleanPrompt.includes('--') || cleanPrompt.includes('rendering') ? 4 : 2))));
-  const totalScore = Math.min(100, promptQuality + outputRelevance + creativity + technicalExecution + authenticityBonus);
+  // Round-specific fallback scoring logic
+  let fallbackOutputRelevance = 15;
+  let fallbackPromptQuality = 15;
+  let fallbackCreativity = 15;
+  let fallbackTechnicalExecution = 15;
+  let fallbackFeedback = '';
+
+  if (sub.roundId === 2) {
+    // Round 2 Scenario Sprint: Heavily grade scenario mention and scenario explanation
+    fallbackOutputRelevance = hasScenarioMention
+      ? Math.min(25, Math.max(18, Math.round(18 + scenarioMatchRatio * 7)))
+      : Math.min(10, Math.max(4, Math.round(scenarioMatchRatio * 8)));
+
+    // Explain check: check for explanation keyphrases
+    const explanationKeywords = ['because', 'due to', 'context', 'problem', 'issue', 'scenario', 'mitigate', 'resolve', 'incident', 'triage', 'steps', 'action'];
+    const explanationCount = explanationKeywords.filter(k => cleanPrompt.includes(k)).length;
+    fallbackPromptQuality = Math.min(25, Math.max(10, Math.round(12 + Math.min(8, wordCount / 12) + Math.min(5, explanationCount * 1.5))));
+
+    fallbackCreativity = Math.min(25, Math.max(12, Math.round(14 + (sub.authenticity.authenticityScore * 0.08))));
+    fallbackTechnicalExecution = Math.min(25, Math.max(12, Math.round(15 + (cleanPrompt.includes('json') || cleanPrompt.includes('step') ? 5 : 2))));
+
+    fallbackFeedback = hasScenarioMention
+      ? `Round 02 Scenario Sprint: Prompt explicitly addresses assigned scenario "${assignedScenario.slice(0, 40)}..." with structured explanation.`
+      : `Round 02 Scenario Sprint: Prompt fails to clearly state or incorporate the assigned scenario "${assignedScenario.slice(0, 40)}...". Please explicitly state and explain your scenario.`;
+  } else {
+    // Round 1 / 3 Fallback
+    fallbackPromptQuality = Math.min(25, Math.max(12, Math.round(14 + (wordCount / 10))));
+    fallbackOutputRelevance = Math.min(25, Math.max(10, Math.round(12 + (scenarioMatchRatio * 13))));
+    fallbackCreativity = Math.min(25, Math.max(12, Math.round(15 + (sub.authenticity.authenticityScore * 0.08))));
+    fallbackTechnicalExecution = Math.min(25, Math.max(12, Math.round(16 + (cleanPrompt.includes('--') || cleanPrompt.includes('rendering') ? 4 : 2))));
+    fallbackFeedback = scenarioMatchRatio >= 0.5
+      ? `Evaluated entry. Prompt demonstrates good alignment with assigned brief "${assignedScenario.slice(0, 35)}...".`
+      : `Evaluated entry. Prompt partially addresses assigned brief "${assignedScenario.slice(0, 35)}...". Could incorporate more task constraints.`;
+  }
+
+  const fallbackTotalScore = Math.min(100, fallbackPromptQuality + fallbackOutputRelevance + fallbackCreativity + fallbackTechnicalExecution + authenticityBonus);
 
   const fallbackScores: SubmissionScores = {
-    promptQuality,
-    outputRelevance,
-    creativity,
-    technicalExecution,
+    promptQuality: fallbackPromptQuality,
+    outputRelevance: fallbackOutputRelevance,
+    creativity: fallbackCreativity,
+    technicalExecution: fallbackTechnicalExecution,
     authenticityBonus,
-    totalScore,
+    totalScore: fallbackTotalScore,
     gradedBy: geminiClient ? 'Gemini 2.0 Flash AI Evaluator' : 'Heuristic Task Evaluator',
-    feedback: taskMatchRatio >= 0.5
-      ? `Evaluated entry. Prompt demonstrates good alignment with assigned task brief "${(sub.assignedThemeOrChit || '').slice(0, 35)}...".`
-      : `Evaluated entry. Prompt partially addresses assigned task brief "${(sub.assignedThemeOrChit || '').slice(0, 35)}...". Could incorporate more task constraints.`,
+    feedback: fallbackFeedback,
     gradedAt: new Date().toISOString()
   };
 
@@ -436,11 +486,77 @@ async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<
   }
 
   try {
-    const systemPrompt = `You are the Lead Judge & Evaluator for PROMPT WARS 2026.
+    let systemPrompt = '';
+    let promptText = '';
+
+    if (sub.roundId === 2) {
+      // Specialized System Prompt for Round 2 (Emergency Scenario Sprint)
+      systemPrompt = `You are the Lead Judge & AI Evaluator for PROMPT WARS 2026 - ROUND 02: SCENARIO EMERGENCY SPRINT.
+
+In Round 02, contestants are assigned a specific emergency incident or technical crisis scenario chit ("${assignedScenario}").
+Your mandate is to strictly evaluate how effectively the contestant's prompt mentions, explains, and addresses their assigned scenario.
+
+EVALUATION CRITERIA & SCORING BREAKDOWN (0-100 TOTAL):
+
+1. OUTPUT RELEVANCE / SCENARIO INCORPORATION (0-25 PTS):
+   - SCENARIO MENTION CHECK: Does the contestant's prompt EXPLICITLY state and mention their assigned emergency scenario ("${assignedScenario}")?
+   - If the prompt completely fails to mention or ignores the assigned scenario chit, cap outputRelevance at 0-6 PTS.
+   - If the prompt explicitly incorporates and targets the assigned scenario chit directly, award 20-25 PTS.
+
+2. PROMPT QUALITY & SCENARIO EXPLANATION (0-25 PTS):
+   - SCENARIO EXPLANATION DEPTH: How well does the contestant EXPLAIN the scenario background, crisis context, emergency parameters, constraints, and instructions within the prompt?
+   - Does it clearly break down the problem statement, system state, variables, and expected resolution steps?
+   - High scores (20-25 PTS) require clear framing, structured constraints, precise context setting, and articulate explanation of the problem.
+
+3. CREATIVITY & STRATEGIC PROBLEM SOLVING (0-25 PTS):
+   - Evaluate the contestant's strategic approach to resolving the crisis described in "${assignedScenario}".
+   - Look for innovative triage mechanisms, creative failover workflows, root-cause isolation prompts, or unique technical mitigation strategies.
+
+4. TECHNICAL EXECUTION & SYNTAX (0-25 PTS):
+   - Technical precision: logic flow, variable placeholders, prompt guardrails, output constraints (e.g. JSON schema, step-by-step triage format, severity classification).
+
+5. ML AUTHENTICITY BONUS (0-10 PTS):
+   - Automatically assigned: ${authenticityBonus} PTS (based on prompt authenticity score of ${sub.authenticity.authenticityScore}%).
+
+FEEDBACK INSTRUCTIONS:
+- You MUST explicitly reference the assigned scenario ("${assignedScenario}").
+- State whether the scenario was explicitly mentioned and well-explained in the prompt.
+- Provide 2-3 concise sentences detailing key strengths and specific areas to improve.
+
+Output strictly valid JSON matching this schema:
+{
+  "promptQuality": number (0-25),
+  "outputRelevance": number (0-25),
+  "creativity": number (0-25),
+  "technicalExecution": number (0-25),
+  "authenticityBonus": number (0-10),
+  "totalScore": number (0-100),
+  "feedback": string
+}`;
+
+      promptText = `
+EVALUATION REQUEST FOR ROUND 02 (SCENARIO SPRINT):
+- Contestant: ${sub.participantName} (${sub.registrationId})
+- RANDOMLY ASSIGNED SCENARIO CHIT: "${assignedScenario}"
+- CONTESTANT'S SUBMITTED PROMPT:
+"""
+${sub.promptText}
+"""
+- AI Tool Specified: "${sub.aiToolUsed}"
+- PROMPT AUTHENTICITY SCORE: ${sub.authenticity.authenticityScore}% (Bonus: +${authenticityBonus} PTS)
+
+INSTRUCTIONS:
+1. Verify if the contestant's prompt explicitly mentions and incorporates the assigned scenario chit "${assignedScenario}".
+2. Evaluate how thoroughly and clearly the scenario problem and context are explained within the prompt.
+3. Return JSON only conforming strictly to the specified schema.`;
+
+    } else {
+      // System Prompt for Round 1 & Round 3
+      systemPrompt = `You are the Lead Judge & Evaluator for PROMPT WARS 2026.
 Your PRIMARY RESPONSIBILITY is to verify whether the contestant's submitted prompt satisfies the randomly assigned task brief given to them in Round 0${sub.roundId}.
 
 CRITICAL EVALUATION INSTRUCTIONS:
-1. Task Satisfaction Check: First, evaluate if the contestant's prompt explicitly fulfills, obeys, and satisfies all requirements of their randomly assigned task brief ("${sub.assignedThemeOrChit}").
+1. Task Satisfaction Check: First, evaluate if the contestant's prompt explicitly fulfills, obeys, and satisfies all requirements of their randomly assigned task brief ("${assignedScenario}").
 2. Output Relevance (0-25 PTS): Rate how accurately and completely the prompt satisfies the assigned task brief. If the prompt fails to satisfy the assigned task or is off-topic, assign a low outputRelevance score (0-8 PTS).
 3. Prompt Quality (0-25 PTS): Evaluate prompt structure, specificity, camera/style modifiers, and engineering depth.
 4. Creativity (0-25 PTS): Evaluate creative concept and visual/textual innovation aligned with the task.
@@ -454,19 +570,20 @@ Output JSON format strictly:
   "technicalExecution": number (0-25),
   "authenticityBonus": number (0-10),
   "totalScore": number (0-100),
-  "feedback": string (2-3 concise sentences assessing specifically if the prompt satisfies the assigned task and explaining key strengths/areas for improvement)
+  "feedback": string
 }`;
 
-    const promptText = `
+      promptText = `
 EVALUATION REQUEST FOR ROUND 0${sub.roundId}:
 - Contestant: ${sub.participantName} (${sub.registrationId})
-- RANDOMLY ASSIGNED TASK BRIEF: "${sub.assignedThemeOrChit}"
+- RANDOMLY ASSIGNED TASK BRIEF: "${assignedScenario}"
 - CONTESTANT'S SUBMITTED PROMPT: "${sub.promptText}"
 - AI Tool Specified: "${sub.aiToolUsed}"
 
 INSTRUCTIONS:
-Verify if the contestant's prompt directly satisfies the assigned task brief "${sub.assignedThemeOrChit}".
+Verify if the contestant's prompt directly satisfies the assigned task brief "${assignedScenario}".
 Score prompt-to-task satisfaction under outputRelevance. Return JSON only.`;
+    }
 
     const response = await geminiClient.models.generateContent({
       model: 'gemini-2.0-flash',
@@ -894,7 +1011,9 @@ app.post('/api/round2/draw-task', requireParticipant, async (req: AuthenticatedR
         .eq('id', participant.id);
 
       if (error) {
-        console.warn('Supabase round2_task update warning:', error.message);
+        console.error(`❌ Failed to update round2_task in Supabase for participant ${participant.id} (${participant.registrationId}):`, error.message);
+      } else {
+        console.log(`✓ Stored Round 2 task in Supabase DB for participant ${participant.registrationId}`);
       }
     }
 
@@ -1277,15 +1396,28 @@ app.post('/api/submissions', requireParticipant, async (req: AuthenticatedReques
       const newSubCount = participant.submissionsCount + 1;
       const bonusEarned = calculateAuthenticityBonus(authenticity.authenticityScore);
       const newBonusTotal = participant.authenticityBonusTotal + bonusEarned;
-      await supabase.from('participants').update({
+      const partUpdates: any = {
         submissions_count: newSubCount,
         authenticity_bonus_total: newBonusTotal,
         updated_at: new Date().toISOString()
-      }).eq('id', participant.id);
+      };
+      if (requestedRound === 1 && !participant.round1Task) {
+        partUpdates.round1_task = { title: assignedThemeOrChit, brief: assignedThemeOrChit };
+      }
+      if (requestedRound === 2 && !participant.round2Task) {
+        partUpdates.round2_task = { title: 'Assigned Scenario Sprint', scenario: assignedThemeOrChit };
+      }
+      await supabase.from('participants').update(partUpdates).eq('id', participant.id);
     } else {
       memorySubmissions.unshift(newSubmission);
       participant.submissionsCount += 1;
       participant.authenticityBonusTotal += calculateAuthenticityBonus(authenticity.authenticityScore);
+      if (requestedRound === 1 && !participant.round1Task) {
+        participant.round1Task = { id: 1, category: 'General', title: assignedThemeOrChit, brief: assignedThemeOrChit };
+      }
+      if (requestedRound === 2 && !participant.round2Task) {
+        participant.round2Task = { id: 1, title: 'Assigned Scenario Sprint', scenario: assignedThemeOrChit };
+      }
     }
 
     res.status(201).json({
