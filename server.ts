@@ -483,39 +483,48 @@ app.get('/api/db-status', async (_req: Request, res: Response) => {
   });
 });
 
-// 1. Participant Auth
+// 1. Participant Auth (Email-only login)
 app.post('/api/auth/login', authLimiter, async (req: Request, res: Response) => {
   try {
-    const { registrationId, email } = req.body;
-    const normReg = String(registrationId || '').trim().toUpperCase();
-    const normEmail = String(email || '').trim().toLowerCase();
+    const { email, registrationId } = req.body;
+    const inputStr = String(email || registrationId || '').trim();
+    const normInput = inputStr.toLowerCase();
 
-    if (!normReg || !normEmail) {
-      res.status(401).json({ error: 'Registration ID and email do not match our records' });
+    if (!normInput) {
+      res.status(400).json({ error: 'Please enter your registered email address.' });
       return;
     }
 
     let participant: Participant | null = null;
 
     if (supabase) {
-      const { data, error } = await supabase
+      const { data: emailData, error: emailErr } = await supabase
         .from('participants')
         .select('*')
-        .eq('registration_id', normReg)
+        .ilike('email', normInput)
         .maybeSingle();
 
-      if (!error && data) {
-        if (String(data.email).trim().toLowerCase() === normEmail) {
-          participant = mapParticipantFromDb(data);
+      if (!emailErr && emailData) {
+        participant = mapParticipantFromDb(emailData);
+      } else {
+        const { data: regData } = await supabase
+          .from('participants')
+          .select('*')
+          .ilike('registration_id', inputStr)
+          .maybeSingle();
+        if (regData) {
+          participant = mapParticipantFromDb(regData);
         }
       }
     } else {
-      const found = memoryParticipants.find(p => p.registrationId === normReg && p.email.toLowerCase() === normEmail);
+      const found = memoryParticipants.find(
+        p => p.email.toLowerCase() === normInput || p.registrationId.toLowerCase() === normInput
+      );
       if (found) participant = found;
     }
 
     if (!participant) {
-      res.status(401).json({ error: 'Registration ID and email do not match our records' });
+      res.status(401).json({ error: 'No participant record found for this email address.' });
       return;
     }
 

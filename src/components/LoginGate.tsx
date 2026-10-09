@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, Mail, ShieldAlert, Sparkles, ArrowRight } from 'lucide-react';
+import { Mail, ShieldAlert, Sparkles, ArrowRight } from 'lucide-react';
 import { ParticipantUser } from '../types';
 import { api } from '../services/api';
 
@@ -8,15 +8,14 @@ interface LoginGateProps {
 }
 
 export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
-  const [registrationId, setRegistrationId] = useState('');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registrationId.trim() || !email.trim()) {
-      setError('Please enter both your Registration ID and Email.');
+    if (!email.trim()) {
+      setError('Please enter your registered email address.');
       return;
     }
 
@@ -24,10 +23,10 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
     setError(null);
 
     try {
-      const user = await api.login(registrationId, email);
+      const user = await api.login(email.trim());
       onLoginSuccess(user);
     } catch (err: any) {
-      setError(err?.message || 'Registration ID and email do not match our records.');
+      setError(err?.message || 'No participant record found for this email address.');
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +58,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
           </div>
           
           <p className="text-xs font-mono text-black font-semibold mt-3 pt-3 border-t-2 border-black">
-            Enter your official Registration ID and Email to access your arena workspace and submit prompt solutions.
+            Enter your official registered email address to access your arena workspace and submit prompt solutions.
           </p>
         </div>
 
@@ -75,31 +74,11 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Registration ID Input */}
-            <div>
-              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-black mb-1.5 flex items-center justify-between">
-                <span>Registration ID</span>
-                <span className="text-[10px] text-gray-500 font-normal">e.g. PW-2026-001</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <KeyRound className="h-4 w-4 text-black" />
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={registrationId}
-                  onChange={(e) => setRegistrationId(e.target.value)}
-                  placeholder="PW-2026-XXX"
-                  className="w-full bg-[#F4F4F0] border-2 border-black pl-10 pr-3 py-2.5 text-sm font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-50 focus:border-black uppercase transition-colors"
-                />
-              </div>
-            </div>
-
             {/* Email Input */}
             <div>
-              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-black mb-1.5">
-                Participant Email
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-black mb-1.5 flex items-center justify-between">
+                <span>Participant Email</span>
+                <span className="text-[10px] text-gray-500 font-normal">e.g. cadet@university.edu</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -125,7 +104,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                  <span>VERIFYING CREDENTIALS...</span>
+                  <span>VERIFYING EMAIL...</span>
                 </>
               ) : (
                 <>
@@ -140,7 +119,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
           <div className="mt-6 pt-4 border-t-2 border-gray-200 text-center">
             <p className="text-[11px] font-mono text-gray-600 font-semibold flex items-center justify-center space-x-1">
               <Sparkles className="w-3.5 h-3.5 text-black inline" />
-              <span>Only pre-registered participants are authorized to enter.</span>
+              <span>Only pre-registered email addresses are authorized to enter.</span>
             </p>
           </div>
         </div>
@@ -149,3 +128,4 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onLoginSuccess }) => {
     </div>
   );
 };
+

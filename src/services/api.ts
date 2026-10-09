@@ -4,16 +4,16 @@ const USE_MOCKS = import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === 'tru
 
 export const api = {
   // ------------------- AUTHENTICATION -------------------
-  async login(registrationId: string, email: string): Promise<ParticipantUser> {
+  async login(email: string, registrationId?: string): Promise<ParticipantUser> {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ registrationId, email })
+      body: JSON.stringify({ email, registrationId: registrationId || email })
     });
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Registration ID and email do not match our records');
+      throw new Error(data.error || 'No participant record found for this email address');
     }
     return data.participant;
   },
