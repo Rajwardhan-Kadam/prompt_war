@@ -826,6 +826,55 @@ app.post('/api/admin/logout', (_req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+app.post('/api/admin/import-participants', async (req: Request, res: Response) => {
+  try {
+    const { participants: newRecords } = req.body;
+    if (!Array.isArray(newRecords)) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    let imported = 0;
+    for (const rec of newRecords) {
+      const regId = rec.registrationId || rec.registration_id;
+      const id = rec.id || `p-${regId.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+      const p: Participant = {
+        id,
+        registrationId: regId,
+        name: rec.name,
+        email: rec.email,
+        college: rec.college || 'Participant Institute',
+        avatar: rec.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop&crop=face',
+        round1Score: 0,
+        round2Score: 0,
+        round3Score: 0,
+        authenticityBonusTotal: 0,
+        totalScore: 0,
+        rank: 1,
+        status: 'active',
+        submissionsCount: 0
+      };
+
+      if (supabase) {
+        await supabase.from('participants').upsert({
+          id: p.id,
+          registration_id: p.registrationId,
+          name: p.name,
+          email: p.email,
+          college: p.college
+        }, { onConflict: 'registration_id' });
+      } else {
+        const idx = memoryParticipants.findIndex(m => m.registrationId === p.registrationId || m.email.toLowerCase() === p.email.toLowerCase());
+        if (idx >= 0) memoryParticipants[idx] = { ...memoryParticipants[idx], ...p };
+        else memoryParticipants.push(p);
+      }
+      imported++;
+    }
+    res.json({ success: true, count: imported });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Import failed' });
+  }
+});
+
 // 3. Prompt Analysis (Rate Limited)
 app.post('/api/check-prompt', geminiLimiter, async (req: Request, res: Response) => {
   try {
@@ -1502,23 +1551,27 @@ app.post('/api/seed-reset', requireAdmin, async (_req: Request, res: Response) =
 // ------------------- SERVER SETUP -------------------
 
 async function startServer() {
+  app.listen(PORT, () => {
+    console.log(`Prompt Wars server listening on http://localhost:${PORT}`);
+  });
+
   if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.warn('Vite dev middleware warning:', err);
+    }
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Prompt Wars server listening on http://0.0.0.0:${PORT}`);
-  });
 }
 
 if (!process.env.VERCEL) {

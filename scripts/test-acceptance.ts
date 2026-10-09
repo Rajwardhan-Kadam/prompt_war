@@ -48,7 +48,7 @@ async function main() {
   // -----------------------------------------------------------------
   try {
     const dryRunOutput = execSync(`npx tsx scripts/import-participants.ts test_participants.xlsx --dry-run`, { encoding: 'utf-8' });
-    
+
     const hasBadEmail = dryRunOutput.includes('Row 5') && dryRunOutput.toLowerCase().includes('invalid email');
     const hasDupId = dryRunOutput.includes('Row 6') && dryRunOutput.toLowerCase().includes('duplicate registration id');
     const hasDupEmail = dryRunOutput.includes('Row 7') && dryRunOutput.toLowerCase().includes('duplicate email');
@@ -167,7 +167,7 @@ async function main() {
       try {
         const sb = createClient(supabaseUrl, supabaseKey);
         await sb.from('submissions').delete().gte('round_id', 1);
-      } catch {}
+      } catch { }
     }
 
     // 1. Submit without cookie -> 401
@@ -901,7 +901,7 @@ async function main() {
   console.log('\n===========================================================');
   console.log('                 ACCEPTANCE TEST RESULTS                   ');
   console.log('===========================================================');
-  
+
   let passedCount = 0;
   testResults.forEach((r) => {
     const icon = r.status === 'PASSED' ? '✓ PASSED' : '❌ FAILED';
