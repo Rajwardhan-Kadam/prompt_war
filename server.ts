@@ -309,44 +309,8 @@ async function evaluateSubmissionWithGeminiMultimodal(sub: Submission): Promise<
   }
 
   try {
-    // Build image part if screenshotUrl exists
-    let imagePart: any = null;
-    if (sub.screenshotUrl) {
-      if (sub.screenshotUrl.startsWith('data:image/')) {
-        const matches = sub.screenshotUrl.match(/^data:(image\/[a-zA-Z0-9]+);base64,(.+)$/);
-        if (matches && matches.length === 3) {
-          imagePart = {
-            inlineData: {
-              mimeType: matches[1],
-              data: matches[2]
-            }
-          };
-        }
-      } else if (sub.screenshotUrl.startsWith('http')) {
-        try {
-          const fetchRes = await fetch(sub.screenshotUrl);
-          if (fetchRes.ok) {
-            const arrayBuffer = await fetchRes.arrayBuffer();
-            const base64 = Buffer.from(arrayBuffer).toString('base64');
-            const contentType = fetchRes.headers.get('content-type') || 'image/jpeg';
-            imagePart = {
-              inlineData: {
-                mimeType: contentType,
-                data: base64
-              }
-            };
-          }
-        } catch (e) {
-          console.warn('Could not fetch screenshot URL for Gemini vision evaluation:', e);
-        }
-      }
-    }
-
     const systemPrompt = `You are the Official AI Lead Evaluator for PROMPT WARS 2026.
-Grade the contestant's submission consisting of:
-1. Assigned Task Brief
-2. Contestant's Exact Prompt String
-3. Contestant's Generated Output Screenshot Image (if provided)
+Grade the contestant's submission by evaluating how accurately and creatively their prompt addresses their assigned tournament task brief.
 
 Rate the submission strictly in JSON format:
 {
@@ -356,7 +320,7 @@ Rate the submission strictly in JSON format:
   "technicalExecution": number (0-25),
   "authenticityBonus": number (0-10),
   "totalScore": number (0-110),
-  "feedback": string (2-3 sentences of concise, constructive critique)
+  "feedback": string (2-3 sentences of concise, constructive critique on prompt engineering quality and alignment with the task)
 }`;
 
     const promptText = `
@@ -368,16 +332,11 @@ EVALUATION REQUEST:
 - AI Tool Used: "${sub.aiToolUsed}"
 - Output Summary: "${sub.generatedOutputSummary || 'None'}"
 
-Evaluate prompt quality, prompt-to-image alignment, creativity, and technical execution. Return JSON only.`;
-
-    const contents: any[] = [promptText];
-    if (imagePart) {
-      contents.push(imagePart);
-    }
+Evaluate prompt quality, prompt-to-task alignment, creativity, and technical execution. Do not analyze image files. Return JSON only.`;
 
     const response = await geminiClient.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents,
+      contents: [promptText],
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: 'application/json'
@@ -404,7 +363,7 @@ Evaluate prompt quality, prompt-to-image alignment, creativity, and technical ex
       gradedAt: new Date().toISOString()
     };
   } catch (err) {
-    console.warn('Gemini multimodal evaluation fallback used:', err);
+    console.warn('Gemini evaluation fallback used:', err);
     return fallbackScores;
   }
 }
