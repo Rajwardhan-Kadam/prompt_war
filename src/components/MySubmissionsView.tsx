@@ -152,7 +152,7 @@ export const MySubmissionsView: React.FC<MySubmissionsViewProps> = ({ currentUse
                           <span>REFEREE EVALUATION SCORECARD</span>
                         </span>
                         <span className="text-2xl font-black bg-black text-[#00E5FF] px-3 py-1">
-                          {sub.scores.totalScore} / 110
+                          {sub.scores.totalScore} / 100
                         </span>
                       </div>
 

@@ -320,7 +320,7 @@ Rate the submission strictly in JSON format:
   "creativity": number (0-25),
   "technicalExecution": number (0-25),
   "authenticityBonus": number (0-10),
-  "totalScore": number (0-110),
+  "totalScore": number (0-100),
   "feedback": string (2-3 sentences of concise, constructive critique on prompt engineering quality and alignment with the task)
 }`;
 
@@ -350,7 +350,7 @@ Evaluate prompt quality, prompt-to-task alignment, creativity, and technical exe
     const cr = Math.min(25, Math.max(0, Math.round(parsed.creativity ?? fallbackScores.creativity)));
     const te = Math.min(25, Math.max(0, Math.round(parsed.technicalExecution ?? fallbackScores.technicalExecution)));
     const ab = Math.min(10, Math.max(0, Math.round(parsed.authenticityBonus ?? authenticityBonus)));
-    const tot = pq + oRel + cr + te + ab;
+    const tot = Math.min(100, Math.max(0, Math.round(parsed.totalScore ?? (pq + oRel + cr + te))));
 
     return {
       promptQuality: pq,
@@ -1233,11 +1233,10 @@ app.patch('/api/submissions/:id/grade', requireAdmin, async (req: Request, res: 
     }
 
     const authenticityBonus = Math.min(10, Math.round(sub.authenticity.authenticityScore * 0.1));
-    const totalScore = (Number(promptQuality) || 0) + 
+    const totalScore = Math.min(100, (Number(promptQuality) || 0) + 
                        (Number(outputRelevance) || 0) + 
                        (Number(creativity) || 0) + 
-                       (Number(technicalExecution) || 0) + 
-                       authenticityBonus;
+                       (Number(technicalExecution) || 0));
 
     const scores: SubmissionScores = {
       promptQuality: Number(promptQuality) || 0,

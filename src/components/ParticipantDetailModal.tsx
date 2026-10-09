@@ -171,7 +171,7 @@ export const ParticipantDetailModal: React.FC<ParticipantDetailModalProps> = ({
                     <div className="flex justify-between items-center text-black">
                       <span className="font-bold">JUDGES' ASSESSMENT ({sub.scores.gradedBy}):</span>
                       <span className="font-black bg-[#FFD600] px-2 py-0.5 rounded border border-black">
-                        {sub.scores.totalScore} / 110 PTS
+                        {sub.scores.totalScore} / 100 PTS
                       </span>
                     </div>
                     {sub.scores.feedback && (

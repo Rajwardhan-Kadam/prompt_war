@@ -38,7 +38,7 @@ export interface SubmissionScores {
   creativity: number; // 0 - 25
   technicalExecution: number; // 0 - 25
   authenticityBonus: number; // 0 - 10 (awarded for genuine self-made prompts)
-  totalScore: number; // 0 - 110
+  totalScore: number; // 0 - 100
   gradedBy?: string;
   feedback?: string;
   gradedAt?: string;

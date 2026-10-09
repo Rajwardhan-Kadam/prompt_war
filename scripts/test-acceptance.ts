@@ -523,7 +523,7 @@ async function main() {
         num: 10,
         name: 'Gemini AI multimodal autograding & leaderboard ranking',
         status: 'PASSED',
-        details: `Evaluated ${autoGradeData.gradedCount} Round 1 submissions. Alice scored ${aliceLead.round1Score}/110 and rank #${aliceLead.rank}.`
+        details: `Evaluated ${autoGradeData.gradedCount} Round 1 submissions. Alice scored ${aliceLead.round1Score}/100 and rank #${aliceLead.rank}.`
       });
     } else {
       testResults.push({

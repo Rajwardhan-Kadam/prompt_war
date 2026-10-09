@@ -409,7 +409,7 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
                 <div className="bg-[#FFD600] border-3 border-black p-4 font-mono text-xs">
                   <div className="flex items-center justify-between font-black text-sm mb-2">
                     <span>SCORE AWARDED BY JUDGE:</span>
-                    <span className="text-xl bg-black text-white px-3 py-1">{existingSubForRound.scores.totalScore} / 110</span>
+                    <span className="text-xl bg-black text-white px-3 py-1">{existingSubForRound.scores.totalScore} / 100</span>
                   </div>
                   {existingSubForRound.scores.feedback && (
                     <p className="font-semibold text-black bg-white p-2 border border-black">

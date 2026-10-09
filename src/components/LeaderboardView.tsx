@@ -951,9 +951,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   
                   {selectedRoundTab === 'overall' ? (
                     <>
-                      <th className="py-4 px-3 text-center font-black">R1 (10M)</th>
-                      <th className="py-4 px-3 text-center font-black">R2 (10M)</th>
-                      <th className="py-4 px-3 text-center font-black">R3 (30M)</th>
+                      <th className="py-4 px-3 text-center font-black">R1 (100 PTS)</th>
+                      <th className="py-4 px-3 text-center font-black">R2 (100 PTS)</th>
+                      <th className="py-4 px-3 text-center font-black">R3 (100 PTS)</th>
                       <th className="py-4 px-3 text-center font-black text-[#00E5FF]">ML BONUS</th>
                       <th className="py-4 px-4 text-right font-black text-[#FFD600]">GRAND TOTAL</th>
                     </>

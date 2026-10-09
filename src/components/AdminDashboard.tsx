@@ -94,7 +94,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         setJudgeFeedback(res.scores.feedback || '');
         setJudgeName('Gemini 2.5 Flash AI Evaluator');
         sound.playSuccessChime();
-        alert(`Gemini AI evaluated entry! Total Score: ${res.scores.totalScore} / 110.`);
+        alert(`Gemini AI evaluated entry! Total Score: ${res.scores.totalScore} / 100.`);
         onRefreshData();
       }
     } catch (err: any) {
@@ -967,7 +967,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span>{isAiGradingSingle ? 'EVALUATING...' : 'GEMINI AI EVALUATE'}</span>
                     </button>
                     <div className="text-sm font-mono font-black text-black bg-[#FFD600] px-2.5 py-1 rounded border-2 border-black shadow-[2px_2px_0_#000]">
-                      TOTAL: {currentTotalGrade} / 110
+                      TOTAL: {currentTotalGrade} / 100
                     </div>
                   </div>
                 </div>
