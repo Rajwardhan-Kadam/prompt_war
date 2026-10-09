@@ -55,13 +55,15 @@ const geminiLimiter = rateLimit({
 
 // ------------------- SUPABASE INITIALIZATION -------------------
 let supabase: SupabaseClient | null = null;
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
   try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log(`✓ Supabase configured with Service Role: Connected to ${supabaseUrl}`);
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+    console.log(`✓ Supabase configured: Connected to ${supabaseUrl}`);
   } catch (err) {
     console.warn('Could not initialize Supabase client:', err);
   }
@@ -156,9 +158,10 @@ async function uploadScreenshotToStorage(dataUrl: string, submissionId: string):
 
 // ------------------- GEMINI AI & HEURISTICS -------------------
 let geminiClient: GoogleGenAI | null = null;
-if (process.env.GEMINI_API_KEY) {
+const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+if (geminiKey) {
   try {
-    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    geminiClient = new GoogleGenAI({ apiKey: geminiKey });
   } catch (err) {
     console.warn('Could not initialize Gemini Client:', err);
   }
@@ -454,11 +457,29 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
 // ------------------- API ROUTES -------------------
 
 // 0. DB Status
-app.get('/api/db-status', (_req: Request, res: Response) => {
+app.get('/api/db-status', async (_req: Request, res: Response) => {
+  let isDbWorking = false;
+  let dbErrorMsg: string | null = null;
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('event_state').select('id').limit(1);
+      if (!error) {
+        isDbWorking = true;
+      } else {
+        dbErrorMsg = error.message;
+      }
+    } catch (err: any) {
+      dbErrorMsg = err.message || 'Database query error';
+    }
+  }
+
   res.json({
     connected: Boolean(supabase),
+    working: isDbWorking,
     provider: supabase ? 'supabase' : 'in-memory',
-    supabaseUrl: supabaseUrl || null
+    supabaseUrl: supabaseUrl || null,
+    error: dbErrorMsg
   });
 });
 
@@ -1510,6 +1531,7 @@ app.post('/api/seed-reset', requireAdmin, async (_req: Request, res: Response) =
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -1527,7 +1549,12 @@ async function startServer() {
   });
 }
 
-startServer().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+if (!process.env.VERCEL) {
+  startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}
+
+export default app;
+export { app };
