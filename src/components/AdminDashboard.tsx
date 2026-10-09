@@ -247,56 +247,78 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     sound.playSuccessChime();
   };
 
-  // Export submissions to CSV
-  const exportToCSV = () => {
+  // Export submissions/leaderboard to Excel/CSV for specific round or all rounds
+  const exportToCSV = (targetRound?: 1 | 2 | 3 | 'all') => {
     sound.playBeep(750, 0.05);
+
+    const filteredSubs = targetRound && targetRound !== 'all'
+      ? submissions.filter((s) => s.roundId === targetRound)
+      : submissions;
+
+    // Sort submissions by score descending
+    const sortedSubs = [...filteredSubs].sort((a, b) => (b.scores?.totalScore || 0) - (a.scores?.totalScore || 0));
+
     const headers = [
-      'Submission ID',
+      'Rank',
       'Round',
-      'Participant',
-      'Reg ID',
-      'College',
-      'Tool Used',
+      'Registration ID',
+      'Participant Name',
+      'College / Institute',
+      'Assigned Task / Brief',
+      'AI Tool Used',
+      'Deployed Demo URL',
       'ML Authenticity Score',
       'ML Verdict',
-      'Prompt Quality (25)',
-      'Relevance (25)',
-      'Creativity (25)',
-      'Execution (25)',
-      'Total Score',
+      'Prompt Quality (Max 25)',
+      'Output Relevance (Max 25)',
+      'Creativity (Max 25)',
+      'Technical Execution (Max 25)',
+      'Authenticity Bonus (Max 10)',
+      'Round Total Score (Max 100)',
       'Status',
       'Submitted At'
     ];
 
-    const rows = submissions.map((s) => [
-      s.id,
-      `Round ${s.roundId}`,
-      s.participantName,
+    const rows = sortedSubs.map((s, idx) => [
+      `#${idx + 1}`,
+      `Round 0${s.roundId}`,
       s.registrationId,
-      s.college,
-      s.aiToolUsed,
-      `${s.authenticity.authenticityScore}%`,
-      s.authenticity.verdict,
+      s.participantName,
+      s.college || 'N/A',
+      s.assignedThemeOrChit || 'N/A',
+      s.aiToolUsed || 'N/A',
+      s.demoUrl || 'N/A',
+      `${s.authenticity?.authenticityScore || 0}%`,
+      s.authenticity?.verdict || 'N/A',
       s.scores?.promptQuality ?? 'N/A',
       s.scores?.outputRelevance ?? 'N/A',
       s.scores?.creativity ?? 'N/A',
       s.scores?.technicalExecution ?? 'N/A',
+      s.scores?.authenticityBonus ?? 'N/A',
       s.scores?.totalScore ?? 'N/A',
       s.status,
-      new Date(s.submittedAt).toLocaleTimeString()
+      new Date(s.submittedAt).toLocaleString()
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((e) => e.map((x) => `"${x}"`).join(','))].join('\n');
+    const csvRows = [
+      headers.join(','),
+      ...rows.map((row) => row.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(','))
+    ];
+    // UTF-8 BOM \uFEFF for seamless Excel opening
+    const csvContent = '\uFEFF' + csvRows.join('\n');
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `prompt_wars_submissions_${Date.now()}.csv`);
+    const filename = targetRound && targetRound !== 'all'
+      ? `prompt_wars_round_0${targetRound}_leaderboard_${Date.now()}.csv`
+      : `prompt_wars_all_rounds_submissions_${Date.now()}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const calculateBonus = (score: number) => {
@@ -375,13 +397,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>{isAutoGradingRound3 ? 'EVALUATING R3...' : 'AUTOGRADE R3'}</span>
           </button>
 
-          <button
-            onClick={exportToCSV}
-            className="neo-btn bg-white hover:bg-[#FFD600] text-black px-3.5 py-2 text-xs flex items-center space-x-1.5 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>EXPORT CSV</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-1.5 border-2 border-black p-1.5 rounded-xl bg-neutral-100 shadow-[2px_2px_0_#000]">
+            <span className="text-[10px] font-mono font-black uppercase text-black/70 px-1">EXPORT:</span>
+            <button
+              onClick={() => exportToCSV(1)}
+              className="neo-btn bg-[#FFD600] hover:bg-black hover:text-white text-black px-2.5 py-1.5 text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer shadow-[2px_2px_0_#000]"
+              title="Download Round 1 Leaderboard Excel/CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>R1 CSV</span>
+            </button>
+            <button
+              onClick={() => exportToCSV(2)}
+              className="neo-btn bg-[#00E5FF] hover:bg-black hover:text-white text-black px-2.5 py-1.5 text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer shadow-[2px_2px_0_#000]"
+              title="Download Round 2 Leaderboard Excel/CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>R2 CSV</span>
+            </button>
+            <button
+              onClick={() => exportToCSV(3)}
+              className="neo-btn bg-[#FF4081] hover:bg-black text-white px-2.5 py-1.5 text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer shadow-[2px_2px_0_#000]"
+              title="Download Round 3 Leaderboard Excel/CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-white" />
+              <span>R3 CSV</span>
+            </button>
+            <button
+              onClick={() => exportToCSV('all')}
+              className="neo-btn bg-white hover:bg-black hover:text-white text-black px-2.5 py-1.5 text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer shadow-[2px_2px_0_#000]"
+              title="Download All Submissions CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>ALL CSV</span>
+            </button>
+          </div>
           <button
             onClick={() => {
               if (confirm('Reset tournament data to fresh demo state?')) {

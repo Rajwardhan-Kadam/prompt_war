@@ -16,7 +16,8 @@ import {
   ShieldAlert,
   Image as ImageIcon,
   Code2,
-  Layers
+  Layers,
+  Download
 } from 'lucide-react';
 import { Participant, Submission, EventState } from '../types';
 import { sound } from '../utils/audio';
@@ -193,6 +194,72 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
     }
   };
 
+  const exportRoundLeaderboardCSV = (roundId: 1 | 2 | 3) => {
+    sound.playBeep(750, 0.05);
+
+    const headers = [
+      'Rank',
+      'Registration ID',
+      'Participant Name',
+      'College / Institute',
+      'Email Address',
+      `Round 0${roundId} Task / Brief`,
+      'Permitted AI Tool',
+      'ML Authenticity Score',
+      'Prompt Quality (Max 25)',
+      'Output Relevance (Max 25)',
+      'Creativity (Max 25)',
+      'Technical Execution (Max 25)',
+      'ML Authenticity Bonus (Max 10)',
+      `Round 0${roundId} Score (Max 100)`,
+      'Submission Status',
+      'Submitted At'
+    ];
+
+    const rows = sorted.map((p, idx) => {
+      const sub = getSubmissionForRound(p.id, p.registrationId, roundId);
+      const roundScore = roundId === 1 ? p.round1Score : roundId === 2 ? p.round2Score : p.round3Score;
+      const taskObj: any = roundId === 1 ? p.round1Task : roundId === 2 ? p.round2Task : p.round3Task;
+      const taskBrief = taskObj?.title || taskObj?.scenario || taskObj?.brief || taskObj?.problemStatement || sub?.assignedThemeOrChit || 'N/A';
+
+      return [
+        `#${idx + 1}`,
+        p.registrationId,
+        p.name,
+        p.college || 'N/A',
+        p.email,
+        taskBrief,
+        sub?.aiToolUsed || 'N/A',
+        sub?.authenticity?.authenticityScore !== undefined ? `${sub.authenticity.authenticityScore}%` : 'N/A',
+        sub?.scores?.promptQuality ?? 'N/A',
+        sub?.scores?.outputRelevance ?? 'N/A',
+        sub?.scores?.creativity ?? 'N/A',
+        sub?.scores?.technicalExecution ?? 'N/A',
+        sub?.scores?.authenticityBonus ?? 'N/A',
+        roundScore,
+        p.status,
+        sub?.submittedAt ? new Date(sub.submittedAt).toLocaleString() : 'N/A'
+      ];
+    });
+
+    const csvRows = [
+      headers.join(','),
+      ...rows.map((row) => row.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(','))
+    ];
+    // Include UTF-8 BOM \uFEFF for seamless Excel encoding support
+    const csvContent = '\uFEFF' + csvRows.join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `prompt_wars_round_0${roundId}_leaderboard_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       
@@ -320,7 +387,15 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => exportRoundLeaderboardCSV(selectedRoundTab)}
+              className="neo-btn bg-[#FFD600] hover:bg-[#00C853] text-black px-4 py-2 text-xs uppercase flex items-center space-x-1.5 cursor-pointer font-black shadow-[3px_3px_0_#000]"
+              title={`Download Round 0${selectedRoundTab} Leaderboard Excel/CSV`}
+            >
+              <Download className="w-4 h-4 text-black" />
+              <span>EXPORT R0{selectedRoundTab} LEADERBOARD (CSV/EXCEL)</span>
+            </button>
             <button
               onClick={handleToggleCurrentRelease}
               className="neo-btn bg-white hover:bg-[#FFD600] text-black px-4 py-2 text-xs uppercase flex items-center space-x-1.5 cursor-pointer font-black"
@@ -423,7 +498,17 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {isAdmin && (
+                <button
+                  onClick={() => exportRoundLeaderboardCSV(selectedRoundTab)}
+                  className="neo-btn bg-[#00E5FF] hover:bg-[#00C853] text-black px-3.5 py-2.5 flex items-center space-x-1.5 text-xs cursor-pointer font-black shadow-[3px_3px_0_#000]"
+                  title={`Download Round 0${selectedRoundTab} Leaderboard Excel/CSV`}
+                >
+                  <Download className="w-4 h-4 text-black" />
+                  <span>EXPORT R0{selectedRoundTab} CSV</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   onRefresh(selectedRoundTab);

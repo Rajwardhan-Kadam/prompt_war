@@ -10,6 +10,7 @@ import { rateLimit } from 'express-rate-limit';
 import { SignJWT, jwtVerify } from 'jose';
 
 import {
+  INITIAL_PARTICIPANTS,
   INITIAL_EVENT_STATE,
   ROUNDS_INFO
 } from './src/data/mockData.ts';
@@ -73,7 +74,7 @@ if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
 }
 
 // In-Memory Fallback State (ONLY populated if Supabase is NOT connected)
-let memoryParticipants: Participant[] = [];
+let memoryParticipants: Participant[] = [...INITIAL_PARTICIPANTS];
 let memorySubmissions: Submission[] = [];
 let eventState: EventState = { ...INITIAL_EVENT_STATE };
 
@@ -2011,7 +2012,7 @@ app.post('/api/seed-reset', requireAdmin, async (_req: Request, res: Response) =
     return;
   }
 
-  memoryParticipants = [];
+  memoryParticipants = [...INITIAL_PARTICIPANTS];
   memorySubmissions = [];
   eventState = { ...INITIAL_EVENT_STATE };
 
@@ -2019,6 +2020,23 @@ app.post('/api/seed-reset', requireAdmin, async (_req: Request, res: Response) =
     try {
       await supabase.from('submissions').delete().neq('id', 'keep-all');
       await supabase.from('participants').delete().neq('id', 'keep-all');
+
+      const dbRows = INITIAL_PARTICIPANTS.map(p => ({
+        id: p.id,
+        registration_id: p.registrationId,
+        name: p.name,
+        college: p.college,
+        email: p.email,
+        avatar: p.avatar,
+        status: p.status || 'active',
+        submissions_count: 0,
+        round1_score: 0,
+        round2_score: 0,
+        round3_score: 0,
+        total_score: 0
+      }));
+      await supabase.from('participants').insert(dbRows);
+
       await supabase.from('event_state').update({
         active_round: 1,
         timer_seconds_remaining: 600,
@@ -2031,7 +2049,7 @@ app.post('/api/seed-reset', requireAdmin, async (_req: Request, res: Response) =
     }
   }
 
-  res.json({ success: true, message: 'Database reset cleanly to fresh state' });
+  res.json({ success: true, message: 'Database reset cleanly to fresh 85-participant state' });
 });
 
 // ------------------- SERVER SETUP -------------------
