@@ -1345,7 +1345,7 @@ app.post('/api/admin/auto-grade-round1', requireAdmin, async (_req: Request, res
 // 6. Public Leaderboard
 app.get('/api/leaderboard', async (req: Request, res: Response) => {
   try {
-    const roundParam = req.query.round ? String(req.query.round).toLowerCase() : 'overall';
+    const roundParam = req.query.round ? String(req.query.round).toLowerCase() : '1';
     const adminToken = req.cookies.pw_admin_session;
     let isAdmin = false;
     if (adminToken) {

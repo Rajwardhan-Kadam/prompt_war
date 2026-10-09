@@ -57,7 +57,7 @@ export default function App() {
   }, []);
 
   // Load initial tournament data
-  const loadData = async (round?: 'overall' | 1 | 2 | 3 | string) => {
+  const loadData = async (round?: 1 | 2 | 3 | string) => {
     try {
       const stateRes = await api.getEventState();
       setEventState(stateRes);

@@ -5,13 +5,8 @@ import {
   Search,
   ExternalLink,
   ChevronRight,
-  TrendingUp,
-  Cpu,
-  Sparkles,
-  School,
   CheckCircle2,
   RefreshCw,
-  Flame,
   Zap,
   Crown,
   Lock,
@@ -19,10 +14,8 @@ import {
   Eye,
   EyeOff,
   ShieldAlert,
-  ArrowRight,
   Image as ImageIcon,
   Code2,
-  Terminal,
   Layers
 } from 'lucide-react';
 import { Participant, Submission, EventState } from '../types';
@@ -32,7 +25,7 @@ interface LeaderboardViewProps {
   participants: Participant[];
   submissions: Submission[];
   onSelectParticipant: (participant: Participant) => void;
-  onRefresh: (round?: 'overall' | 1 | 2 | 3) => void;
+  onRefresh: (round?: 1 | 2 | 3) => void;
   isAdmin: boolean;
   eventState: EventState;
   onUpdateEventState: (updates: Partial<EventState>) => void;
@@ -49,17 +42,14 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   onUpdateEventState,
   onOpenAdminPinModal
 }) => {
-  // Round-wise separate tabs: 'overall' | 1 | 2 | 3
-  const [selectedRoundTab, setSelectedRoundTab] = useState<'overall' | 1 | 2 | 3>('overall');
+  // Round-wise separate tabs: 1 | 2 | 3
+  const [selectedRoundTab, setSelectedRoundTab] = useState<1 | 2 | 3>(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCollege, setFilterCollege] = useState('all');
-  const [sortBy, setSortBy] = useState<'total' | 'r1' | 'r2' | 'r3' | 'bonus'>('total');
 
   // Check if current active tab is released or embargoed
   const isCurrentTabReleased =
-    selectedRoundTab === 'overall'
-      ? eventState.isLeaderboardPublished
-      : selectedRoundTab === 1
+    selectedRoundTab === 1
       ? eventState.publishedRounds?.round1 ?? false
       : selectedRoundTab === 2
       ? eventState.publishedRounds?.round2 ?? false
@@ -81,24 +71,14 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   const sorted = [...filtered].sort((a, b) => {
     if (selectedRoundTab === 1) {
       if (b.round1Score !== a.round1Score) return b.round1Score - a.round1Score;
-      return b.totalScore - a.totalScore;
+      return (b.round2Score + b.round3Score) - (a.round2Score + a.round3Score);
     }
     if (selectedRoundTab === 2) {
       if (b.round2Score !== a.round2Score) return b.round2Score - a.round2Score;
-      return b.totalScore - a.totalScore;
+      return (b.round1Score + b.round3Score) - (a.round1Score + a.round3Score);
     }
-    if (selectedRoundTab === 3) {
-      if (b.round3Score !== a.round3Score) return b.round3Score - a.round3Score;
-      return b.totalScore - a.totalScore;
-    }
-
-    // Overall tab sorting
-    if (sortBy === 'total') return b.totalScore - a.totalScore;
-    if (sortBy === 'r1') return b.round1Score - a.round1Score;
-    if (sortBy === 'r2') return b.round2Score - a.round2Score;
-    if (sortBy === 'r3') return b.round3Score - a.round3Score;
-    if (sortBy === 'bonus') return b.authenticityBonusTotal - a.authenticityBonusTotal;
-    return b.totalScore - a.totalScore;
+    if (b.round3Score !== a.round3Score) return b.round3Score - a.round3Score;
+    return (b.round1Score + b.round2Score) - (a.round1Score + a.round2Score);
   });
 
   // Unique colleges for filter
@@ -112,8 +92,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   const getParticipantDynamicRank = (p: Participant) => {
     if (selectedRoundTab === 1) return p.round1Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
     if (selectedRoundTab === 2) return p.round2Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
-    if (selectedRoundTab === 3) return p.round3Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
-    return p.rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
+    return p.round3Rank ?? (sorted.findIndex((item) => item.id === p.id) + 1);
   };
 
   const getParticipantRankString = (p: Participant) => {
@@ -161,32 +140,23 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   };
 
   const getTabTitle = () => {
-    if (selectedRoundTab === 'overall') return 'GRAND CHAMPIONSHIP BOARD';
     if (selectedRoundTab === 1) return 'ROUND 01 — PROMPT TO PICTURE STANDINGS';
     if (selectedRoundTab === 2) return 'ROUND 02 — SCENARIO SPRINT STANDINGS';
     return 'ROUND 03 — PROMPT TO PRODUCT FINALE';
   };
 
   const getTabSubtitle = () => {
-    if (selectedRoundTab === 'overall') {
-      return 'Cumulative championship standings across all 3 rounds plus verified ML authenticity bonus.';
-    }
     if (selectedRoundTab === 1) {
-      return 'Image generation challenge scores based on prompt precision, aesthetic output relevance, and screenshot verification.';
+      return 'Image generation challenge scores evaluated on prompt precision, aesthetic output relevance, and screenshot verification (Max 100 PTS).';
     }
     if (selectedRoundTab === 2) {
-      return 'Situation-based prompting challenge scores evaluated on 15-word scenario solving, constraint syntax, and LLM reasoning.';
+      return 'Situation-based prompting challenge scores evaluated on 15-word scenario solving, constraint syntax, and LLM reasoning (Max 100 PTS).';
     }
-    return 'AI-assisted full prototype scores evaluated on functional delivery, code architecture, and live demonstration.';
+    return 'AI-assisted full prototype scores evaluated on functional delivery, code architecture, and live demonstration (Max 100 PTS).';
   };
 
   const handleToggleCurrentRelease = () => {
-    if (selectedRoundTab === 'overall') {
-      const next = !eventState.isLeaderboardPublished;
-      onUpdateEventState({ isLeaderboardPublished: next });
-      if (next) sound.playSuccessChime();
-      else sound.playWarningPing();
-    } else if (selectedRoundTab === 1) {
+    if (selectedRoundTab === 1) {
       const next = !(eventState.publishedRounds?.round1 ?? false);
       onUpdateEventState({
         publishedRounds: { ...eventState.publishedRounds, round1: next }
@@ -214,46 +184,20 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       
       {/* ------------------------------------------------------------- */}
-      {/* ROUND-WISE SEPARATE TAB SWITCHER (Loot Drop Style) */}
+      {/* ROUND-WISE SEPARATE TAB SWITCHER */}
       {/* ------------------------------------------------------------- */}
       <div className="bg-white border-4 border-black p-3 rounded-2xl shadow-[6px_6px_0_#000] space-y-2">
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] font-mono font-black text-black/70 uppercase tracking-wider flex items-center space-x-1.5">
             <Layers className="w-3.5 h-3.5 text-black" />
-            <span>SELECT TOURNAMENT LEADERBOARD:</span>
+            <span>SELECT ROUND LEADERBOARD:</span>
           </span>
           <span className="text-[10px] font-mono font-bold text-black/50 hidden sm:inline">
-            CLICK TABS TO VIEW ROUND-BY-ROUND STANDINGS
+            SCORES ARE CALCULATED SEPARATELY FOR EACH ROUND (100 PTS MAX)
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {/* Overall Tab */}
-          <button
-            onClick={() => {
-              setSelectedRoundTab('overall');
-              sound.playBeep(700, 0.04);
-              onRefresh('overall');
-            }}
-            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1.5 cursor-pointer ${
-              selectedRoundTab === 'overall'
-                ? 'bg-[#FFD600] text-black shadow-[4px_4px_0_#000] translate-x-[-1px] translate-y-[-1px]'
-                : 'bg-[#F4F4F0] text-black hover:bg-neutral-200'
-            }`}
-          >
-            <Trophy className="w-4 h-4 shrink-0" />
-            <span className="truncate">OVERALL BOARD</span>
-            {!eventState.isLeaderboardPublished ? (
-              <span className="text-[9px] bg-[#FF4081] text-white px-1.5 py-0.2 rounded border border-black shrink-0 font-bold">
-                {isAdmin ? 'EMBARGO' : '🔒'}
-              </span>
-            ) : (
-              <span className="text-[9px] bg-[#00C853] text-black px-1.5 py-0.2 rounded border border-black shrink-0 font-bold">
-                LIVE
-              </span>
-            )}
-          </button>
-
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {/* Round 1 Tab */}
           <button
             onClick={() => {
@@ -261,7 +205,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               sound.playBeep(750, 0.04);
               onRefresh(1);
             }}
-            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1.5 cursor-pointer ${
+            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-row items-center justify-center space-x-2 cursor-pointer ${
               selectedRoundTab === 1
                 ? 'bg-[#FFD600] text-black shadow-[4px_4px_0_#000] translate-x-[-1px] translate-y-[-1px]'
                 : 'bg-[#F4F4F0] text-black hover:bg-neutral-200'
@@ -287,7 +231,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               sound.playBeep(800, 0.04);
               onRefresh(2);
             }}
-            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1.5 cursor-pointer ${
+            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-row items-center justify-center space-x-2 cursor-pointer ${
               selectedRoundTab === 2
                 ? 'bg-[#FFD600] text-black shadow-[4px_4px_0_#000] translate-x-[-1px] translate-y-[-1px]'
                 : 'bg-[#F4F4F0] text-black hover:bg-neutral-200'
@@ -313,7 +257,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               sound.playBeep(850, 0.04);
               onRefresh(3);
             }}
-            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1.5 cursor-pointer ${
+            className={`py-3 px-3 rounded-xl border-3 border-black text-xs font-mono font-black uppercase transition-all flex flex-row items-center justify-center space-x-2 cursor-pointer ${
               selectedRoundTab === 3
                 ? 'bg-[#FFD600] text-black shadow-[4px_4px_0_#000] translate-x-[-1px] translate-y-[-1px]'
                 : 'bg-[#F4F4F0] text-black hover:bg-neutral-200'
@@ -357,7 +301,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               </div>
               <p className="text-xs font-mono opacity-90 mt-0.5">
                 {isCurrentTabReleased
-                  ? 'Contestants can currently see the standings in this tab.'
+                  ? 'Contestants can currently see the standings in this round.'
                   : 'Contestants are blocked by the embargo screen until you release this specific round.'}
               </p>
             </div>
@@ -371,12 +315,12 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               {isCurrentTabReleased ? (
                 <>
                   <Lock className="w-3.5 h-3.5 text-[#FF4081]" />
-                  <span>EMBARGO / HIDE THIS TAB</span>
+                  <span>EMBARGO / HIDE THIS ROUND</span>
                 </>
               ) : (
                 <>
                   <Unlock className="w-3.5 h-3.5 text-[#00C853]" />
-                  <span>ALLOW & RELEASE THIS TAB</span>
+                  <span>ALLOW & RELEASE THIS ROUND</span>
                 </>
               )}
             </button>
@@ -391,15 +335,15 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
         <div className="bg-[#FFD600] border-4 border-black p-8 sm:p-12 rounded-3xl shadow-[10px_10px_0_#000] text-center space-y-6">
           <div className="inline-flex items-center space-x-2 bg-black text-[#FFD600] px-4 py-1.5 rounded-xl border-2 border-black font-mono font-black text-xs uppercase shadow-[3px_3px_0_#000]">
             <Lock className="w-4 h-4 text-[#FFD600]" />
-            <span>RESULTS EMBARGO ACTIVE</span>
+            <span>ROUND {selectedRoundTab} RESULTS EMBARGO ACTIVE</span>
           </div>
 
           <div className="space-y-3">
             <h2 className="text-3xl sm:text-5xl font-heading font-black text-black uppercase tracking-tight">
-              {selectedRoundTab === 'overall' ? 'OVERALL STANDINGS PENDING' : `ROUND 0${selectedRoundTab} EVALUATION IN PROGRESS`}
+              ROUND 0{selectedRoundTab} EVALUATION IN PROGRESS
             </h2>
             <p className="text-xs sm:text-sm font-mono font-bold text-black/80 max-w-xl mx-auto leading-relaxed">
-              Official scores for this specific round are currently being evaluated and verified by tournament referees. Standings will be unlocked here as soon as the round results are released.
+              Official scores for Round 0{selectedRoundTab} are currently being evaluated and verified by tournament referees. Standings will be unlocked here as soon as the round results are released.
             </p>
           </div>
 
@@ -452,10 +396,10 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-[#00C853] text-black font-black font-mono text-xs uppercase border-2 border-black shadow-[2px_2px_0_#000] flex items-center space-x-1">
                   <span className="w-2 h-2 rounded-full bg-black animate-ping mr-1"></span>
-                  {selectedRoundTab === 'overall' ? 'CHAMPIONSHIP STANDINGS' : `ROUND 0${selectedRoundTab} STANDINGS`}
+                  ROUND 0{selectedRoundTab} STANDINGS
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#FFD600] text-black font-black font-mono text-xs uppercase border-2 border-black shadow-[2px_2px_0_#000]">
-                  REAL-TIME AUDITED
+                  SCALE: 100 PTS MAX
                 </span>
               </div>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-black text-black uppercase tracking-tight">
@@ -534,7 +478,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                     ROUND 03 GRAND FINALE: TOP 10 FINALISTS BATTLING FOR TOURNAMENT CHAMPIONSHIP
                   </h4>
                   <p className="font-mono text-xs text-black/80 font-bold mt-0.5">
-                    The top 10 finalists build functional prototypes. Final podium standings will be announced live by tournament judges!
+                    The top 10 finalists build functional prototypes. Round 03 scores determine the Round 03 finale champion!
                   </p>
                 </div>
               </div>
@@ -557,11 +501,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-xl bg-black text-[#FFD600] font-heading font-black text-xs uppercase flex items-center space-x-1.5 shadow-[2px_2px_0_#000]">
                       <Crown className="w-4 h-4 text-[#FFD600]" />
-                      <span>
-                        {selectedRoundTab === 'overall'
-                          ? `GOLD CHAMPION · RANK ${getParticipantRankString(top1)}`
-                          : `ROUND 0${selectedRoundTab} WINNER · RANK ${getParticipantRankString(top1)}`}
-                      </span>
+                      <span>ROUND 0{selectedRoundTab} WINNER · RANK {getParticipantRankString(top1)}</span>
                     </span>
                     <span className="text-xs font-mono font-black text-black bg-white px-2 py-0.5 rounded border-2 border-black">
                       {top1.registrationId}
@@ -584,46 +524,22 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                         {top1.name}
                       </h4>
                       <p className="text-xs font-mono font-bold text-black/80 line-clamp-1">{top1.college}</p>
-                      <div className="inline-flex items-center space-x-1 mt-1 text-[11px] font-mono font-black bg-[#00C853] text-black px-2 py-0.5 rounded border border-black">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>ML BONUS +{top1.authenticityBonusTotal} PTS</span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Round breakdown or round-specific details */}
-                  {selectedRoundTab === 'overall' ? (
-                    <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-xl border-3 border-black text-center font-mono text-xs shadow-[3px_3px_0_#000]">
-                      <div>
-                        <div className="text-[10px] font-black text-black/60 uppercase">R1 Picture</div>
-                        <div className="font-black text-black text-base">{top1.round1Score}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-black text-black/60 uppercase">R2 Scenario</div>
-                        <div className="font-black text-black text-base">{top1.round2Score}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-black text-black/60 uppercase">R3 Product</div>
-                        <div className="font-black text-black text-base">{top1.round3Score}</div>
-                      </div>
+                  <div className="bg-white p-3 rounded-xl border-3 border-black font-mono text-xs shadow-[3px_3px_0_#000] space-y-1">
+                    <div className="text-[10px] font-black text-black/60 uppercase">ROUND 0{selectedRoundTab} DELIVERABLE VERIFIED:</div>
+                    <div className="text-xs text-black font-bold line-clamp-2">
+                      {getSubmissionForRound(top1.id, top1.registrationId, selectedRoundTab)?.assignedThemeOrChit || 'Verified tournament challenge submission'}
                     </div>
-                  ) : (
-                    <div className="bg-white p-3 rounded-xl border-3 border-black font-mono text-xs shadow-[3px_3px_0_#000] space-y-1">
-                      <div className="text-[10px] font-black text-black/60 uppercase">ROUND DELIVERABLE VERIFIED:</div>
-                      <div className="text-xs text-black font-bold line-clamp-2">
-                        {getSubmissionForRound(top1.id, top1.registrationId, selectedRoundTab)?.assignedThemeOrChit || 'Verified tournament challenge submission'}
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   <div className="mt-4 pt-3 border-t-3 border-black flex items-center justify-between">
                     <span className="text-xs font-heading font-black uppercase text-black">
-                      {selectedRoundTab === 'overall' ? 'TOTAL SCORE' : `ROUND 0${selectedRoundTab} SCORE`}
+                      ROUND 0{selectedRoundTab} SCORE
                     </span>
                     <span className="text-3xl font-mono font-black text-black">
-                      {selectedRoundTab === 'overall'
-                        ? `${top1.totalScore} PTS`
-                        : selectedRoundTab === 1
+                      {selectedRoundTab === 1
                         ? `${top1.round1Score} PTS`
                         : selectedRoundTab === 2
                         ? `${top1.round2Score} PTS`
@@ -642,11 +558,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-xl bg-neutral-100 text-black font-heading font-black text-xs uppercase border-2 border-black flex items-center space-x-1.5 shadow-[2px_2px_0_#000]">
                       <Medal className="w-4 h-4 text-neutral-600" />
-                      <span>
-                        {selectedRoundTab === 'overall'
-                          ? `SILVER RUNNER-UP · RANK ${getParticipantRankString(top2)}`
-                          : `ROUND 0${selectedRoundTab} RUNNER-UP · RANK ${getParticipantRankString(top2)}`}
-                      </span>
+                      <span>ROUND 0{selectedRoundTab} RUNNER-UP · RANK {getParticipantRankString(top2)}</span>
                     </span>
                     <span className="text-xs font-mono font-bold text-black/70 bg-neutral-100 px-2 py-0.5 rounded border border-black">
                       {top2.registrationId}
@@ -667,38 +579,19 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                     </div>
                   </div>
 
-                  {selectedRoundTab === 'overall' ? (
-                    <div className="grid grid-cols-3 gap-2 bg-[#F4F4F0] p-3 rounded-xl border-2 border-black text-center font-mono text-xs">
-                      <div>
-                        <div className="text-[10px] font-bold text-black/60 uppercase">R1</div>
-                        <div className="font-black text-black text-sm">{top2.round1Score}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-black/60 uppercase">R2</div>
-                        <div className="font-black text-black text-sm">{top2.round2Score}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-black/60 uppercase">R3</div>
-                        <div className="font-black text-black text-sm">{top2.round3Score}</div>
-                      </div>
+                  <div className="bg-[#F4F4F0] p-3 rounded-xl border-2 border-black font-mono text-xs space-y-1">
+                    <div className="text-[10px] font-bold text-black/60 uppercase">ROUND 0{selectedRoundTab} DELIVERABLE:</div>
+                    <div className="text-xs text-black font-bold line-clamp-2">
+                      {getSubmissionForRound(top2.id, top2.registrationId, selectedRoundTab)?.assignedThemeOrChit || 'Verified challenge deliverable'}
                     </div>
-                  ) : (
-                    <div className="bg-[#F4F4F0] p-3 rounded-xl border-2 border-black font-mono text-xs space-y-1">
-                      <div className="text-[10px] font-bold text-black/60 uppercase">ROUND DELIVERABLE:</div>
-                      <div className="text-xs text-black font-bold line-clamp-2">
-                        {getSubmissionForRound(top2.id, top2.registrationId, selectedRoundTab)?.assignedThemeOrChit || 'Verified challenge deliverable'}
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   <div className="mt-4 pt-3 border-t-2 border-black flex items-center justify-between">
                     <span className="text-xs font-heading font-black text-black uppercase">
-                      {selectedRoundTab === 'overall' ? 'TOTAL SCORE' : `ROUND 0${selectedRoundTab} SCORE`}
+                      ROUND 0{selectedRoundTab} SCORE
                     </span>
                     <span className="text-2xl font-mono font-black text-black">
-                      {selectedRoundTab === 'overall'
-                        ? `${top2.totalScore} PTS`
-                        : selectedRoundTab === 1
+                      {selectedRoundTab === 1
                         ? `${top2.round1Score} PTS`
                         : selectedRoundTab === 2
                         ? `${top2.round2Score} PTS`
@@ -717,11 +610,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-xl bg-white text-black font-heading font-black text-xs uppercase border-2 border-black flex items-center space-x-1.5 shadow-[2px_2px_0_#000]">
                       <Medal className="w-4 h-4 text-[#FF6B00]" />
-                      <span>
-                        {selectedRoundTab === 'overall'
-                          ? `BRONZE 3RD PLACE · RANK ${getParticipantRankString(top3)}`
-                          : `ROUND 0${selectedRoundTab} 3RD PLACE · RANK ${getParticipantRankString(top3)}`}
-                      </span>
+                      <span>ROUND 0{selectedRoundTab} 3RD PLACE · RANK {getParticipantRankString(top3)}</span>
                     </span>
                     <span className="text-xs font-mono font-bold text-black bg-white px-2 py-0.5 rounded border border-black">
                       {top3.registrationId}
@@ -742,38 +631,19 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                     </div>
                   </div>
 
-                  {selectedRoundTab === 'overall' ? (
-                    <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-xl border-2 border-black text-center font-mono text-xs">
-                      <div>
-                        <div className="text-[10px] font-bold text-black/60 uppercase">R1</div>
-                        <div className="font-black text-black text-sm">{top3.round1Score}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-black/60 uppercase">R2</div>
-                        <div className="font-black text-black text-sm">{top3.round2Score}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-black/60 uppercase">R3</div>
-                        <div className="font-black text-black text-sm">{top3.round3Score}</div>
-                      </div>
+                  <div className="bg-white p-3 rounded-xl border-2 border-black font-mono text-xs space-y-1">
+                    <div className="text-[10px] font-bold text-black/60 uppercase">ROUND 0{selectedRoundTab} DELIVERABLE:</div>
+                    <div className="text-xs text-black font-bold line-clamp-2">
+                      {getSubmissionForRound(top3.id, top3.registrationId, selectedRoundTab)?.assignedThemeOrChit || 'Verified challenge deliverable'}
                     </div>
-                  ) : (
-                    <div className="bg-white p-3 rounded-xl border-2 border-black font-mono text-xs space-y-1">
-                      <div className="text-[10px] font-bold text-black/60 uppercase">ROUND DELIVERABLE:</div>
-                      <div className="text-xs text-black font-bold line-clamp-2">
-                        {getSubmissionForRound(top3.id, top3.registrationId, selectedRoundTab)?.assignedThemeOrChit || 'Verified challenge deliverable'}
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   <div className="mt-4 pt-3 border-t-2 border-black flex items-center justify-between">
                     <span className="text-xs font-heading font-black text-black uppercase">
-                      {selectedRoundTab === 'overall' ? 'TOTAL SCORE' : `ROUND 0${selectedRoundTab} SCORE`}
+                      ROUND 0{selectedRoundTab} SCORE
                     </span>
                     <span className="text-2xl font-mono font-black text-black">
-                      {selectedRoundTab === 'overall'
-                        ? `${top3.totalScore} PTS`
-                        : selectedRoundTab === 1
+                      {selectedRoundTab === 1
                         ? `${top3.round1Score} PTS`
                         : selectedRoundTab === 2
                         ? `${top3.round2Score} PTS`
@@ -822,30 +692,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <option key={idx} value={col}>{col.toUpperCase()}</option>
                 ))}
               </select>
-
-              {selectedRoundTab === 'overall' && (
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-[#FFD600] border-3 border-black rounded-xl px-3 py-2 text-xs text-black font-mono font-black uppercase focus:outline-none shadow-[2px_2px_0_#000]"
-                >
-                  <option value="total">SORT: TOTAL SCORE</option>
-                  <option value="r1">SORT: ROUND 1 (PICTURE)</option>
-                  <option value="r2">SORT: ROUND 2 (SCENARIO)</option>
-                  <option value="r3">SORT: ROUND 3 (PRODUCT)</option>
-                  <option value="bonus">SORT: ML BONUS</option>
-                </select>
-              )}
             </div>
           </div>
 
           {/* MOBILE VIEW: Neo-Brutalist Contestant Cards */}
           <div className="space-y-3.5 md:hidden">
             {sorted.map((p, idx) => {
-              const sub =
-                selectedRoundTab !== 'overall'
-                  ? getSubmissionForRound(p.id, p.registrationId, selectedRoundTab)
-                  : null;
+              const sub = getSubmissionForRound(p.id, p.registrationId, selectedRoundTab);
               const isCutoffLine = 
                 (selectedRoundTab === 1 && idx === 30) ||
                 (selectedRoundTab === 2 && idx === 10);
@@ -894,54 +747,31 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                         )}
                       </div>
                       <div className="text-right">
-                      <span className="text-xl font-mono font-black text-black">
-                        {selectedRoundTab === 'overall'
-                          ? p.totalScore
-                          : selectedRoundTab === 1
-                          ? p.round1Score
-                          : selectedRoundTab === 2
-                          ? p.round2Score
-                          : p.round3Score}
-                      </span>
-                      <span className="text-xs font-mono font-black text-black/60 ml-1 uppercase">PTS</span>
+                        <span className="text-xl font-mono font-black text-black">
+                          {selectedRoundTab === 1
+                            ? p.round1Score
+                            : selectedRoundTab === 2
+                            ? p.round2Score
+                            : p.round3Score}
+                        </span>
+                        <span className="text-xs font-mono font-black text-black/60 ml-1 uppercase">PTS</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-3 mb-3">
-                    <img
-                      src={p.avatar}
-                      alt={p.name}
-                      className="w-12 h-12 rounded-xl border-2 border-black object-cover shrink-0 shadow-[2px_2px_0_#000]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-heading font-black text-black text-base uppercase truncate">{p.name}</div>
-                      <div className="text-xs font-mono font-bold text-black/60 truncate">{p.college}</div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <img
+                        src={p.avatar}
+                        alt={p.name}
+                        className="w-12 h-12 rounded-xl border-2 border-black object-cover shrink-0 shadow-[2px_2px_0_#000]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-heading font-black text-black text-base uppercase truncate">{p.name}</div>
+                        <div className="text-xs font-mono font-bold text-black/60 truncate">{p.college}</div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-black shrink-0" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-black shrink-0" />
-                  </div>
 
-                  {/* Overall tab pills */}
-                  {selectedRoundTab === 'overall' ? (
-                    <div className="grid grid-cols-4 gap-1.5 pt-2.5 border-t-2 border-black text-center font-mono text-xs">
-                      <div className="bg-[#F4F4F0] py-1 rounded-lg border border-black">
-                        <div className="text-[9px] font-bold text-black/60 uppercase">R1</div>
-                        <div className="font-black text-black">{p.round1Score > 0 ? p.round1Score : '—'}</div>
-                      </div>
-                      <div className="bg-[#F4F4F0] py-1 rounded-lg border border-black">
-                        <div className="text-[9px] font-bold text-black/60 uppercase">R2</div>
-                        <div className="font-black text-black">{p.round2Score > 0 ? p.round2Score : '—'}</div>
-                      </div>
-                      <div className="bg-[#F4F4F0] py-1 rounded-lg border border-black">
-                        <div className="text-[9px] font-bold text-black/60 uppercase">R3</div>
-                        <div className="font-black text-black">{p.round3Score > 0 ? p.round3Score : '—'}</div>
-                      </div>
-                      <div className="bg-[#00C853] py-1 rounded-lg border border-black text-black font-black">
-                        <div className="text-[9px] uppercase">BONUS</div>
-                        <div>+{p.authenticityBonusTotal}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Round-specific excerpt */
+                    {/* Round-specific excerpt */}
                     <div className="pt-2 border-t-2 border-black font-mono text-xs text-black/80 flex items-center justify-between">
                       <span className="truncate max-w-[200px]">
                         {sub?.assignedThemeOrChit || 'Challenge entry'}
@@ -957,12 +787,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                         </span>
                       )}
                     </div>
-                  )}
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
 
           {/* DESKTOP VIEW: Neo-Brutalist Standings Table */}
           <div className="hidden md:block overflow-hidden rounded-2xl border-4 border-black bg-white shadow-[8px_8px_0_#000]">
@@ -973,15 +802,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                   <th className="py-4 px-4 font-black">CONTESTANT</th>
                   <th className="py-4 px-4 font-black">INSTITUTION</th>
                   
-                  {selectedRoundTab === 'overall' ? (
-                    <>
-                      <th className="py-4 px-3 text-center font-black">R1 (100 PTS)</th>
-                      <th className="py-4 px-3 text-center font-black">R2 (100 PTS)</th>
-                      <th className="py-4 px-3 text-center font-black">R3 (100 PTS)</th>
-                      <th className="py-4 px-3 text-center font-black text-[#00E5FF]">ML BONUS</th>
-                      <th className="py-4 px-4 text-right font-black text-[#FFD600]">GRAND TOTAL</th>
-                    </>
-                  ) : selectedRoundTab === 1 ? (
+                  {selectedRoundTab === 1 ? (
                     <>
                       <th className="py-4 px-4 font-black">THEME CHIT / TOPIC</th>
                       <th className="py-4 px-3 font-black">AI IMAGE TOOL</th>
@@ -1010,10 +831,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
 
               <tbody className="divide-y-2 divide-black font-mono">
                 {sorted.map((p, idx) => {
-                  const sub =
-                    selectedRoundTab !== 'overall'
-                      ? getSubmissionForRound(p.id, p.registrationId, selectedRoundTab)
-                      : null;
+                  const sub = getSubmissionForRound(p.id, p.registrationId, selectedRoundTab);
                   const isCutoffLine = 
                     (selectedRoundTab === 1 && idx === 30) ||
                     (selectedRoundTab === 2 && idx === 10);
@@ -1084,124 +902,103 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                           {p.college}
                         </td>
 
-                      {/* Overall Tab columns */}
-                      {selectedRoundTab === 'overall' ? (
-                        <>
-                          <td className="py-3.5 px-3 text-center font-black text-black text-sm">
-                            {p.round1Score > 0 ? p.round1Score : <span className="text-black/30">—</span>}
-                          </td>
-                          <td className="py-3.5 px-3 text-center font-black text-black text-sm">
-                            {p.round2Score > 0 ? p.round2Score : <span className="text-black/30">—</span>}
-                          </td>
-                          <td className="py-3.5 px-3 text-center font-black text-black text-sm">
-                            {p.round3Score > 0 ? p.round3Score : <span className="text-black/30">—</span>}
-                          </td>
-                          <td className="py-3.5 px-3 text-center">
-                            <span className="px-2 py-0.5 rounded bg-[#00C853] text-black font-black border border-black text-xs">
-                              +{p.authenticityBonusTotal}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-black text-lg text-black">
-                            {p.totalScore}
-                          </td>
-                        </>
-                      ) : selectedRoundTab === 1 ? (
-                        /* Round 1 Columns */
-                        <>
-                          <td className="py-3.5 px-4 max-w-xs truncate font-bold text-black" title={sub?.assignedThemeOrChit}>
-                            {sub?.assignedThemeOrChit || 'Theme assigned'}
-                          </td>
-                          <td className="py-3.5 px-3 font-black text-black uppercase">
-                            {sub?.aiToolUsed || 'Midjourney'}
-                          </td>
-                          <td className="py-3.5 px-3 text-center">
-                            {sub?.screenshotUrl ? (
-                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-[#FFD600] text-black border border-black font-bold">
-                                <ImageIcon className="w-3.5 h-3.5" />
-                                <span>VERIFIED</span>
+                        {selectedRoundTab === 1 ? (
+                          /* Round 1 Columns */
+                          <>
+                            <td className="py-3.5 px-4 max-w-xs truncate font-bold text-black" title={sub?.assignedThemeOrChit}>
+                              {sub?.assignedThemeOrChit || 'Theme assigned'}
+                            </td>
+                            <td className="py-3.5 px-3 font-black text-black uppercase">
+                              {sub?.aiToolUsed || 'Midjourney'}
+                            </td>
+                            <td className="py-3.5 px-3 text-center">
+                              {sub?.screenshotUrl ? (
+                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-[#FFD600] text-black border border-black font-bold">
+                                  <ImageIcon className="w-3.5 h-3.5" />
+                                  <span>VERIFIED</span>
+                                </span>
+                              ) : (
+                                <span className="text-black/40">—</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-black text-lg text-black">
+                              {p.round1Score} PTS
+                            </td>
+                          </>
+                        ) : selectedRoundTab === 2 ? (
+                          /* Round 2 Columns */
+                          <>
+                            <td className="py-3.5 px-4 max-w-xs truncate font-bold text-black" title={sub?.assignedThemeOrChit}>
+                              {sub?.assignedThemeOrChit || '15-word scenario chit'}
+                            </td>
+                            <td className="py-3.5 px-3 font-black text-black uppercase">
+                              {sub?.aiToolUsed || 'Claude / GPT-4o'}
+                            </td>
+                            <td className="py-3.5 px-3 text-center">
+                              <span className="px-2 py-0.5 rounded bg-[#00C853] text-black font-black border border-black text-xs">
+                                {sub?.authenticity.authenticityScore ?? 85}% HUMAN
                               </span>
-                            ) : (
-                              <span className="text-black/40">—</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-black text-lg text-black">
-                            {p.round1Score} PTS
-                          </td>
-                        </>
-                      ) : selectedRoundTab === 2 ? (
-                        /* Round 2 Columns */
-                        <>
-                          <td className="py-3.5 px-4 max-w-xs truncate font-bold text-black" title={sub?.assignedThemeOrChit}>
-                            {sub?.assignedThemeOrChit || '15-word scenario chit'}
-                          </td>
-                          <td className="py-3.5 px-3 font-black text-black uppercase">
-                            {sub?.aiToolUsed || 'Claude / GPT-4o'}
-                          </td>
-                          <td className="py-3.5 px-3 text-center">
-                            <span className="px-2 py-0.5 rounded bg-[#00C853] text-black font-black border border-black text-xs">
-                              {sub?.authenticity.authenticityScore ?? 85}% HUMAN
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-black text-lg text-black">
-                            {p.round2Score} PTS
-                          </td>
-                        </>
-                      ) : (
-                        /* Round 3 Columns */
-                        <>
-                          <td className="py-3.5 px-4 max-w-xs truncate font-bold text-black" title={sub?.assignedThemeOrChit}>
-                            {sub?.assignedThemeOrChit || 'Prompt-to-Product prototype'}
-                          </td>
-                          <td className="py-3.5 px-3 font-black text-black uppercase">
-                            {sub?.aiToolUsed || 'Cursor / v0'}
-                          </td>
-                          <td className="py-3.5 px-3 text-center">
-                            <div className="flex items-center justify-center space-x-2">
-                              {sub?.demoUrl && (
-                                <a
-                                  href={sub.demoUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="p-1 bg-[#00E5FF] rounded border border-black hover:scale-110 transition-transform"
-                                  title="Open Prototype"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5 text-black" />
-                                </a>
-                              )}
-                              {sub?.repoUrl && (
-                                <a
-                                  href={sub.repoUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="p-1 bg-neutral-200 rounded border border-black hover:scale-110 transition-transform"
-                                  title="Open Repo"
-                                >
-                                  <Code2 className="w-3.5 h-3.5 text-black" />
-                                </a>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-black text-lg text-black">
-                            {p.round3Score} PTS
-                          </td>
-                        </>
-                      )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-black text-lg text-black">
+                              {p.round2Score} PTS
+                            </td>
+                          </>
+                        ) : (
+                          /* Round 3 Columns */
+                          <>
+                            <td className="py-3.5 px-4 max-w-xs truncate font-bold text-black" title={sub?.assignedThemeOrChit}>
+                              {sub?.assignedThemeOrChit || 'Prompt-to-Product prototype'}
+                            </td>
+                            <td className="py-3.5 px-3 font-black text-black uppercase">
+                              {sub?.aiToolUsed || 'Cursor / v0'}
+                            </td>
+                            <td className="py-3.5 px-3 text-center">
+                              <div className="flex items-center justify-center space-x-2">
+                                {sub?.demoUrl && (
+                                  <a
+                                    href={sub.demoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1 bg-[#00E5FF] rounded border border-black hover:scale-110 transition-transform"
+                                    title="Open Prototype"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5 text-black" />
+                                  </a>
+                                )}
+                                {sub?.repoUrl && (
+                                  <a
+                                    href={sub.repoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1 bg-neutral-200 rounded border border-black hover:scale-110 transition-transform"
+                                    title="Open Repo"
+                                  >
+                                    <Code2 className="w-3.5 h-3.5 text-black" />
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-black text-lg text-black">
+                              {p.round3Score} PTS
+                            </td>
+                          </>
+                        )}
 
-                      <td className="py-3.5 px-3 text-center">
-                        <button
-                          className="p-1.5 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0_#000] group-hover:bg-[#FFD600] transition-colors"
-                          title="Inspect Submissions & Prompt Engineering"
-                        >
-                          <ChevronRight className="w-4 h-4 text-black" />
-                        </button>
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
+                        <td className="py-3.5 px-3 text-center">
+                          <button
+                            className="p-1.5 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0_#000] group-hover:bg-[#FFD600] transition-colors"
+                            title="Inspect Submissions & Prompt Engineering"
+                          >
+                            <ChevronRight className="w-4 h-4 text-black" />
+                          </button>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
         </>

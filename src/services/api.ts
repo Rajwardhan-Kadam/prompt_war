@@ -210,8 +210,9 @@ export const api = {
   },
 
   // ------------------- LEADERBOARD & SYSTEM -------------------
-  async getLeaderboard(round?: 'overall' | 1 | 2 | 3 | string): Promise<Participant[]> {
-    const url = round && round !== 'overall' ? `/api/leaderboard?round=${round}` : '/api/leaderboard';
+  async getLeaderboard(round?: 1 | 2 | 3 | string): Promise<Participant[]> {
+    const targetRound = round || 1;
+    const url = `/api/leaderboard?round=${targetRound}`;
     const res = await fetch(url, { credentials: 'same-origin' });
     if (!res.ok) {
       if (USE_MOCKS) {
