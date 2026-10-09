@@ -41,8 +41,17 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
   participants = [],
   onSubmissionSuccess
 }) => {
+  // Helper to check if submission belongs to currently logged-in participant
+  const isMySubmission = (s: Submission) => {
+    if (!currentUser) return false;
+    if (currentUser.id && s.participantId === currentUser.id) return true;
+    if (currentUser.email && s.email && s.email.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    if (currentUser.registrationId && s.registrationId === currentUser.registrationId) return true;
+    return false;
+  };
+
   // Check if current user already submitted for activeRound
-  const existingSubForRound = (existingSubmissions || []).find(s => s.roundId === activeRound);
+  const existingSubForRound = (existingSubmissions || []).find(s => s.roundId === activeRound && isMySubmission(s));
 
   // Round content state
   const [assignedTheme, setAssignedTheme] = useState(
@@ -190,8 +199,8 @@ export const SubmissionPortal: React.FC<SubmissionPortalProps> = ({
   const estimatedTokens = Math.round(promptText.length / 4);
 
   // Round Active & Prerequisite Enforcement Checks
-  const hasSubmittedR1 = (existingSubmissions || []).some(s => s.roundId === 1);
-  const hasSubmittedR2 = (existingSubmissions || []).some(s => s.roundId === 2);
+  const hasSubmittedR1 = (existingSubmissions || []).some(s => s.roundId === 1 && isMySubmission(s));
+  const hasSubmittedR2 = (existingSubmissions || []).some(s => s.roundId === 2 && isMySubmission(s));
 
   const isPrereqMet = activeRound === 1 
     ? true 
